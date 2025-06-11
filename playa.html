@@ -19,5 +19,29 @@
     <img src="images/playa/2.jpg" alt="Playa del Taco 2" />
     <!-- Add more photos as needed -->
   </main>
+
+  <div id="lightbox" class="lightbox" onclick="closeImage()">
+    <img id="lightbox-img" src="" alt="Expanded view" />
+  </div>
+  
+  <script>
+  function openImage(src) {
+    const lightbox = document.getElementById('lightbox');
+    const img = document.getElementById('lightbox-img');
+    img.src = src;
+    lightbox.style.display = 'flex';
+  }
+
+  function closeImage() {
+    document.getElementById('lightbox').style.display = 'none';
+  }
+
+  // Attach click handler to each image
+  document.addEventListener("DOMContentLoaded", () => {
+    document.querySelectorAll(".gallery img").forEach(img => {
+      img.addEventListener("click", () => openImage(img.src));
+    });
+  });
+</script>
 </body>
 </html>

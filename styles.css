@@ -61,3 +61,17 @@ nav a {
   max-width: 90%;
   max-height: 90%;
 }
+
+.gallery img {
+  width: 100%;
+  height: auto;
+  cursor: pointer;
+  display: block;
+  margin-bottom: 1rem;
+  border-radius: 2px;
+}
+
+main.gallery {
+  max-width: 960px;
+  margin: auto;
+}
