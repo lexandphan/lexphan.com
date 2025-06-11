@@ -15,8 +15,27 @@
   </header>
 
   <main class="gallery">
-    <img src="images/playa/1.jpg" alt="Playa del Taco 1" />
-    <img src="images/playa/2.jpg" alt="Playa del Taco 2" />
+    <img src="images/playa/1.jpg"/>
+    <img src="images/playa/2.jpg"/>
+    <img src="images/playa/3.jpg"/>
+    <img src="images/playa/4.jpg"/>
+    <img src="images/playa/5.jpg"/>
+    <img src="images/playa/6.jpg"/>
+    <img src="images/playa/7.jpg"/>
+    <img src="images/playa/8.jpg"/>
+    <img src="images/playa/9.jpg"/>
+    <img src="images/playa/10.jpg"/>
+    <img src="images/playa/11.jpg"/>
+    <img src="images/playa/12.jpg"/>
+    <img src="images/playa/13.jpg"/>
+    <img src="images/playa/14.jpg"/>
+    <img src="images/playa/15.jpg"/>
+    <img src="images/playa/16.jpg"/>
+    <img src="images/playa/17.jpg"/>
+    <img src="images/playa/18.jpg"/>
+    <img src="images/playa/19.jpg"/>
+    <img src="images/playa/20.jpg"/>
+    <img src="images/playa/21.jpg"/>
     <!-- Add more photos as needed -->
   </main>
 
@@ -40,6 +59,16 @@
   document.addEventListener("DOMContentLoaded", () => {
     document.querySelectorAll(".gallery img").forEach(img => {
       img.addEventListener("click", () => openImage(img.src));
+    });
+  });
+</script>
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    document.querySelectorAll(".gallery img").forEach(img => {
+      const src = img.getAttribute("src");
+      const fileName = src.split("/").pop().split(".")[0];
+      const cleanName = fileName.replace(/[-_]/g, " ");
+      img.setAttribute("alt", cleanName.charAt(0).toUpperCase() + cleanName.slice(1));
     });
   });
 </script>
