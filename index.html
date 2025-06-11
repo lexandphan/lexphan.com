@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lex Phan Photography</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header>
+    <h1><a href="index.html">LEX PHAN</a></h1>
+    <nav>
+      <a href="info.html">Info</a>
+    </nav>
+  </header>
+
+  <main class="gallery">
+    <!-- Sample gallery images -->
+    <div class="gallery-item">
+      <img src="images/photo1_thumb.jpg" alt="Photo 1" onclick="openImage('images/photo1.jpg')" />
+    </div>
+    <div class="gallery-item">
+      <img src="images/photo2_thumb.jpg" alt="Photo 2" onclick="openImage('images/photo2.jpg')" />
+    </div>
+    <!-- Add more photos as needed -->
+  </main>
+
+  <div id="lightbox" class="lightbox" onclick="closeImage()">
+    <img id="lightbox-img" src="" alt="Full Image" />
+  </div>
+
+  <script>
+    function openImage(src) {
+      const lightbox = document.getElementById('lightbox');
+      const img = document.getElementById('lightbox-img');
+      img.src = src;
+      lightbox.style.display = 'flex';
+    }
+
+    function closeImage() {
+      document.getElementById('lightbox').style.display = 'none';
+    }
+  </script>
+</body>
+</html>
