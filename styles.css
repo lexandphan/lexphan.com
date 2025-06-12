@@ -76,6 +76,7 @@ main.gallery {
 
 .scattered-photo {
   position: absolute;
+  --base-rotate: 0deg;
   cursor: pointer;
   max-width: 300px;
   max-height: 300px;
@@ -128,6 +129,7 @@ main.gallery {
 
 .scattered-gallery img {
   position: absolute;
+  --base-rotate: 0deg;
   transition: transform 0.2s ease, width 0.2s ease, height 0.2s ease, left 0.2s ease, top 0.2s ease;
   cursor: pointer;
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
