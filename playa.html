@@ -120,6 +120,7 @@
         domImg.style.setProperty('--base-rotate', `${rotate}deg`);
         domImg.style.transform = `rotate(var(--base-rotate))`;
         domImg.style.zIndex = i;
+        domImg.style.transition = "transform 0.3s ease, box-shadow 0.3s ease";
         domImg.loading = "lazy";
         domImg.onload = () => domImg.classList.add("loaded");
         domImg.addEventListener("click", () => openImage(domImg.src));
@@ -162,7 +163,8 @@
             img.dataset.randomTilt = (Math.random() * 2 - 1.2).toFixed(2); // -1.2 to +0.8
           }
 
-          const tilt = scrollY * 0.005 * parseFloat(img.dataset.randomTilt);
+          const phaseOffset = parseFloat(img.dataset.randomTilt);
+          const tilt = Math.sin((scrollY + i * 30) * 0.01 + phaseOffset * 2) * 2;
           const baseRotate = img.style.getPropertyValue('--base-rotate') || "0deg";
           img.style.transform = `rotate(calc(${baseRotate} + ${tilt}deg)) translateY(${offset}px)`;
         });
