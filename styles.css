@@ -175,8 +175,16 @@ main.gallery {
 }
 
 @media (min-width: 768px) {
+  .scattered-gallery img {
+    transition:
+      opacity 0.3s ease,
+      transform 0.3s ease,
+      box-shadow 0.3s ease;
+  }
+
   .scattered-gallery img:hover {
-    transform: scale(1.07) rotate(calc(var(--base-rotate, 0deg) + 6deg)) translateY(0);
+    --hover-rotate: 6deg;
+    transform: rotate(calc(var(--base-rotate) + var(--hover-rotate))) scale(1.07);
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
     z-index: 1000;
   }
