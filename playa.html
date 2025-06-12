@@ -9,6 +9,17 @@
     #gallery {
       visibility: hidden;
     }
+    .fade-in {
+      opacity: 0;
+      transform: translateY(20px);
+      transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+    }
+
+    .fade-in.visible {
+      opacity: 1;
+      transform: translateY(0) scale(1.02);
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+    }
   </style>
 </head>
 <body>
@@ -22,7 +33,9 @@
  <main class="scattered-gallery" id="gallery"></main>
 
 <div id="lightbox" class="lightbox">
-  <img id="lightbox-img" src="" alt="" />
+  <div id="lightbox-swipe-area">
+    <img id="lightbox-img" src="" alt="" />
+  </div>
 </div>
 
 <script>
@@ -134,7 +147,10 @@
         });
         domImg.style.transition = "transform 0.3s ease, box-shadow 0.3s ease";
         domImg.loading = "lazy";
-        domImg.onload = () => domImg.classList.add("loaded");
+        domImg.onload = () => {
+          domImg.classList.add("loaded");
+          domImg.classList.add("fade-in");
+        };
         domImg.addEventListener("click", () => openImage(domImg.src));
         gallery.appendChild(domImg);
 
@@ -144,6 +160,20 @@
           setTimeout(() => {
             loadImages(false);
             gallery.style.visibility = 'visible';
+
+            const observer = new IntersectionObserver((entries) => {
+              entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                  entry.target.classList.add('visible');
+                }
+              });
+            }, {
+              threshold: 0.1
+            });
+
+            document.querySelectorAll('.fade-in').forEach(img => {
+              observer.observe(img);
+            });
           }, 10);
         }
       };
@@ -178,12 +208,20 @@
           if (!img.dataset.randomTilt) {
             img.dataset.randomTilt = (Math.random() * 2 - 1.2).toFixed(2); // -1.2 to +0.8
           }
+          // 25% chance pulse assignment
+          if (!img.dataset.shouldPulse) {
+            img.dataset.shouldPulse = Math.random() < 0.50 ? "true" : "false"; // ~25% chance
+          }
 
           const phaseOffset = parseFloat(img.dataset.randomTilt);
-          const tilt = Math.sin((scrollY + i * 30) * 0.01 + phaseOffset * 2) * 2;
+          const tilt = Math.sin((scrollY + i * 30) * 0.005 + phaseOffset * 2) * 1.5;
           const baseRotate = parseFloat(img.style.getPropertyValue('--base-rotate')) || 0;
 
           img.style.transform = `rotate(${baseRotate + tilt}deg) translateY(${offset}px)`;
+          if (img.dataset.shouldPulse === "true") {
+            const scale = 1 + 0.1 * Math.abs(Math.sin(scrollY * 0.005 + i));
+            img.style.transform += ` scale(${scale})`;
+          }
         });
       }
     });
@@ -193,6 +231,22 @@
     loadImages(false);
   });
 
+  function showNextImage() {
+    if (currentImageIndex < imageLayoutData.length - 1) {
+      currentImageIndex++;
+      document.getElementById('lightbox-img').src = `images/playa/${imageLayoutData[currentImageIndex].imgIndex}.jpg`;
+      // document.getElementById('lightbox-caption').textContent = `Playa del Taco ${imageLayoutData[currentImageIndex].imgIndex}`;
+    }
+  }
+
+  function showPrevImage() {
+    if (currentImageIndex > 0) {
+      currentImageIndex--;
+      document.getElementById('lightbox-img').src = `images/playa/${imageLayoutData[currentImageIndex].imgIndex}.jpg`;
+      // document.getElementById('lightbox-caption').textContent = `Playa del Taco ${imageLayoutData[currentImageIndex].imgIndex}`;
+    }
+  }
+
   function openImage(src) {
     const lightbox = document.getElementById('lightbox');
     const img = document.getElementById('lightbox-img');
@@ -201,6 +255,7 @@
       currentImageIndex = index;
     }
     img.src = src;
+    // document.getElementById('lightbox-caption').textContent = img.alt;
     lightbox.style.display = 'flex';
     document.body.classList.add('noscroll');
   }
@@ -226,6 +281,35 @@
         closeImage();
       }
     }
+  });
+
+  // --- Swipe detection for lightbox ---
+  let startX = 0;
+  let isSwiping = false;
+
+  const swipeArea = document.getElementById('lightbox-swipe-area');
+  const lightboxImg = document.getElementById('lightbox-img');
+
+  swipeArea.addEventListener('touchstart', (e) => {
+    startX = e.touches[0].clientX;
+    isSwiping = true;
+  });
+
+  swipeArea.addEventListener('touchmove', (e) => {
+    if (!isSwiping) return;
+    const diffX = e.touches[0].clientX - startX;
+    if (Math.abs(diffX) > 50) {
+      isSwiping = false;
+      if (diffX > 0) {
+        showPrevImage();
+      } else {
+        showNextImage();
+      }
+    }
+  });
+
+  swipeArea.addEventListener('touchend', () => {
+    isSwiping = false;
   });
 </script>
 

@@ -51,6 +51,9 @@ nav a {
   margin-bottom: 1rem;
   border-radius: 0;
   transition: 0.3s ease-in-out;
+  background: white;
+  padding: 5px;
+  box-sizing: content-box;
 }
 
 .gallery img:hover {
@@ -90,6 +93,9 @@ main.gallery {
   cursor: pointer;
   border-radius: 0;
   transition: opacity 0.3s;
+  background: white;
+  padding: 5px;
+  box-sizing: content-box;
 }
 
 .gallery.masonry img:hover {
@@ -113,7 +119,7 @@ main.gallery {
   --base-rotate: 0deg;
   opacity: 0;
   cursor: pointer;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 24px 72px rgba(0, 0, 0, 0.7);
   border-radius: 0;
   width: auto;
   height: auto;
@@ -128,6 +134,9 @@ main.gallery {
     top 0.2s ease;
   will-change: transform, z-index;
   backface-visibility: hidden;
+  background: white;
+  padding: 5px;
+  box-sizing: content-box;
 }
 
 @media (min-width: 768px) {
@@ -139,7 +148,7 @@ main.gallery {
   .scattered-gallery img:hover {
     position: absolute;
     transform: scale(1.125) rotate(0deg) !important;
-    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45) !important;
+    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.65) !important;
     z-index: 9999;
   }
 }
@@ -188,4 +197,32 @@ main.gallery {
   height: 100vh;
   position: fixed;
   width: 100%;
+}
+
+@keyframes mobileScrollPulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.25); }
+  100% { transform: scale(1); }
+}
+
+@media (max-width: 768px) {
+  .scattered-gallery img.scroll-scale-pulse {
+    animation: mobileScrollPulse 4s ease-in-out infinite;
+  }
+
+  .scattered-gallery img:nth-child(3n) {
+    animation-delay: 0s;
+  }
+
+  .scattered-gallery img:nth-child(4n) {
+    animation-delay: 2s;
+  }
+
+  .scattered-gallery img:nth-child(5n) {
+    animation-delay: 3s;
+  }
+
+  .scattered-gallery img {
+    transform: translateY(2px);
+  }
 }
