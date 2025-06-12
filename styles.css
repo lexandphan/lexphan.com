@@ -1,3 +1,17 @@
+.scattered-gallery img {
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.scattered-gallery img.loaded {
+  opacity: 1;
+}
+.scattered-gallery img:hover {
+  transform: scale(1.03) rotate(0deg);
+  z-index: 10000;
+}
+
+#lightbox {
 body {
   margin: 0;
   font-family: Helvetica, Arial, sans-serif;
@@ -181,4 +195,18 @@ main.gallery {
   height: 100vh;
   position: fixed;
   width: 100%;
+}
+.noscroll {
+  overflow: hidden;
+  height: 100vh;
+  position: fixed;
+  width: 100%;
+}
+
+@media (min-width: 768px) {
+  .scattered-gallery img:hover {
+    transform: scale(1.05) rotate(0deg);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+    z-index: 1000;
+  }
 }

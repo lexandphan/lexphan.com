@@ -119,7 +119,8 @@
         domImg.style.height = `${height}px`;
         domImg.style.transform = `rotate(${rotate}deg)`;
         domImg.style.zIndex = i;
-
+        domImg.loading = "lazy";
+        domImg.onload = () => domImg.classList.add("loaded");
         domImg.addEventListener("click", () => openImage(domImg.src));
         gallery.appendChild(domImg);
 
@@ -149,6 +150,15 @@
 
   document.addEventListener("DOMContentLoaded", () => {
     loadImages(true);
+    // Subtle parallax tilt effect
+    window.addEventListener('scroll', () => {
+      const scrollY = window.scrollY;
+      document.querySelectorAll('.scattered-gallery img').forEach(img => {
+        const baseTransform = img.style.transform.split('translateY')[0];
+        const offset = scrollY * 0.005;
+        img.style.transform = `${baseTransform} translateY(${offset}px)`;
+      });
+    });
   });
 
   window.addEventListener("resize", () => {
