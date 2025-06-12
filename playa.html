@@ -154,10 +154,15 @@
     // Subtle parallax tilt effect (mobile only)
     window.addEventListener('scroll', () => {
       if (window.innerWidth < 768) {
-        const scrollY = window.scrollY;
-        document.querySelectorAll('.scattered-gallery img').forEach(img => {
+        document.querySelectorAll('.scattered-gallery img').forEach((img, i) => {
+          const scrollY = window.scrollY;
           const offset = scrollY * 0.005;
-          const tilt = (scrollY % 360) * 0.01 - 1.8; // Range: ~[-1.8deg, +1.8deg]
+
+          if (!img.dataset.randomTilt) {
+            img.dataset.randomTilt = (Math.random() * 2 - 1.2).toFixed(2); // -1.2 to +0.8
+          }
+
+          const tilt = scrollY * 0.002 * parseFloat(img.dataset.randomTilt);
           const baseRotate = img.style.getPropertyValue('--base-rotate') || "0deg";
           img.style.transform = `rotate(calc(${baseRotate} + ${tilt}deg)) translateY(${offset}px)`;
         });
