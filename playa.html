@@ -49,7 +49,7 @@
       let mobileRunningTop = 0;
 
       const totalGalleryWidth = imagesPerRow * (idealImageWidth + horizontalSpacing);
-      const galleryLeftOffset = (window.innerWidth - totalGalleryWidth) / 2;
+      const galleryLeftOffset = (window.innerWidth * 0.90 - totalGalleryWidth) / 2 + window.innerWidth * 0.05;
 
       imageLayoutData = imageIndexes.map((imgIndex) => {
         const rotate = Math.floor(Math.random() * 10) - 5;
@@ -85,12 +85,11 @@
       img.src = `images/playa/${imgIndex}.jpg`;
       img.alt = `Playa del Taco ${imgIndex}`;
 
-      const scaleX = (window.innerWidth - 30) / originalWindowWidth; // account for slight padding
-      img.style.left = `${left * scaleX}px`;
-      img.style.top = `${top * scaleX}px`;
+      img.style.left = `${left}px`;
+      img.style.top = `${top}px`;
       img.style.transform = `rotate(${rotate}deg)`;
       img.style.zIndex = i;
-      img.style.width = `${width * scaleX}px`;
+      img.style.width = `${width}px`;
       const shadowOffset = Math.floor(Math.random() * 6) + 2;
       img.style.boxShadow = `0 ${shadowOffset}px ${shadowOffset * 2}px rgba(0, 0, 0, 0.25)`;
 
