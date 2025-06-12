@@ -32,21 +32,46 @@
       img.src = `images/playa/${i}.jpg`;
       img.alt = `Playa del Taco ${i}`;
 
-      const left = Math.floor(Math.random() * 80); // % from left
-      const top = Math.floor(Math.random() * 2200); // px from top
-      const rotate = Math.floor(Math.random() * 12) - 6; // -6 to +6 deg
+      const isMobile = window.innerWidth < 768;
+
+      const left = isMobile
+        ? 5 + Math.random() * 10 // less horizontal spread on mobile
+        : Math.random() * 80;
+
+      const top = isMobile
+        ? i * 200 + Math.random() * 50
+        : i * 250 + Math.random() * 100;
+
+      const rotate = Math.floor(Math.random() * 12) - 6;
 
       img.style.position = "absolute";
       img.style.left = `${left}%`;
       img.style.top = `${top}px`;
       img.style.transform = `rotate(${rotate}deg)`;
       img.style.zIndex = i;
-      img.style.width = "25vw";
-      img.style.maxWidth = "200px";
+      img.style.width = isMobile ? "90vw" : `${Math.min(window.innerWidth * 0.25, 300)}px`;
+      img.style.maxWidth = "100%";
 
       img.addEventListener("click", () => openImage(img.src));
       gallery.appendChild(img);
     }
+    adjustGalleryHeight();
+  }
+
+  function adjustGalleryHeight() {
+    const gallery = document.getElementById("gallery");
+    const images = gallery.querySelectorAll("img");
+    let maxBottom = 0;
+
+    images.forEach(img => {
+      const top = parseFloat(img.style.top);
+      const height = img.offsetHeight || 0;
+      if (top + height > maxBottom) {
+        maxBottom = top + height;
+      }
+    });
+
+    gallery.style.height = `${maxBottom + 100}px`;
   }
 
   document.addEventListener("DOMContentLoaded", () => {
@@ -56,6 +81,10 @@
   function openImage(src) {
     const lightbox = document.getElementById('lightbox');
     const img = document.getElementById('lightbox-img');
+    img.style.maxWidth = '90vw';
+    img.style.maxHeight = '90vh';
+    img.style.width = 'auto';
+    img.style.height = 'auto';
     img.src = src;
     lightbox.style.display = 'flex';
     lightbox.style.position = 'fixed';
