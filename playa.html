@@ -58,6 +58,15 @@
     const img = document.getElementById('lightbox-img');
     img.src = src;
     lightbox.style.display = 'flex';
+    lightbox.style.position = 'fixed';
+    lightbox.style.top = '0';
+    lightbox.style.left = '0';
+    lightbox.style.width = '100vw';
+    lightbox.style.height = '100vh';
+    lightbox.style.justifyContent = 'center';
+    lightbox.style.alignItems = 'center';
+    lightbox.style.background = 'rgba(0, 0, 0, 0.85)';
+    lightbox.style.zIndex = '9999';
   }
 
   function closeImage() {
@@ -65,15 +74,5 @@
   }
 </script>
 
-<script>
-  document.addEventListener("DOMContentLoaded", () => {
-    document.querySelectorAll(".gallery img").forEach(img => {
-      const src = img.getAttribute("src");
-      const fileName = src.split("/").pop().split(".")[0];
-      const cleanName = fileName.replace(/[-_]/g, " ");
-      img.setAttribute("alt", cleanName.charAt(0).toUpperCase() + cleanName.slice(1));
-    });
-  });
-</script>
 </body>
 </html>
