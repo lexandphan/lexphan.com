@@ -16,8 +16,10 @@
 
  <main class="scattered-gallery" id="gallery"></main>
 
-<div id="lightbox" class="lightbox" onclick="closeImage()">
+<div id="lightbox" class="lightbox">
+  <div id="lightbox-left" class="lightbox-zone left-zone"></div>
   <img id="lightbox-img" src="" alt="" />
+  <div id="lightbox-right" class="lightbox-zone right-zone"></div>
 </div>
 
 <script>
@@ -120,25 +122,50 @@
     }
     img.src = src;
     lightbox.style.display = 'flex';
+    document.body.classList.add('noscroll');
   }
 
   function closeImage() {
     document.getElementById('lightbox').style.display = 'none';
+    document.body.classList.remove('noscroll');
   }
 
-  document.getElementById('lightbox').addEventListener('click', (e) => {
-    const img = document.getElementById('lightbox-img');
-    const lightboxRect = e.currentTarget.getBoundingClientRect();
-    const clickX = e.clientX - lightboxRect.left;
-
-    if (clickX < lightboxRect.width / 2) {
-      currentImageIndex = (currentImageIndex - 1 + imageLayoutData.length) % imageLayoutData.length;
-    } else {
-      currentImageIndex = (currentImageIndex + 1) % imageLayoutData.length;
-    }
-
+  document.getElementById('lightbox-left').addEventListener('click', () => {
+    currentImageIndex = (currentImageIndex - 1 + imageLayoutData.length) % imageLayoutData.length;
     const nextImgIndex = imageLayoutData[currentImageIndex].imgIndex;
-    img.src = `images/playa/${nextImgIndex}.jpg`;
+    document.getElementById('lightbox-img').src = `images/playa/${nextImgIndex}.jpg`;
+  });
+
+  document.getElementById('lightbox-right').addEventListener('click', () => {
+    currentImageIndex = (currentImageIndex + 1) % imageLayoutData.length;
+    const nextImgIndex = imageLayoutData[currentImageIndex].imgIndex;
+    document.getElementById('lightbox-img').src = `images/playa/${nextImgIndex}.jpg`;
+  });
+
+  // Close lightbox when clicking background (but not image)
+  document.getElementById('lightbox').addEventListener('click', (e) => {
+    if (e.target.id === 'lightbox') {
+      closeImage();
+    }
+  });
+
+  document.getElementById('lightbox-img').addEventListener('click', closeImage);
+
+  // Keyboard navigation for lightbox
+  document.addEventListener('keydown', (e) => {
+    if (document.getElementById('lightbox').style.display === 'flex') {
+      if (e.key === 'Escape') {
+        closeImage();
+      } else if (e.key === 'ArrowLeft') {
+        currentImageIndex = (currentImageIndex - 1 + imageLayoutData.length) % imageLayoutData.length;
+        const nextImgIndex = imageLayoutData[currentImageIndex].imgIndex;
+        document.getElementById('lightbox-img').src = `images/playa/${nextImgIndex}.jpg`;
+      } else if (e.key === 'ArrowRight') {
+        currentImageIndex = (currentImageIndex + 1) % imageLayoutData.length;
+        const nextImgIndex = imageLayoutData[currentImageIndex].imgIndex;
+        document.getElementById('lightbox-img').src = `images/playa/${nextImgIndex}.jpg`;
+      }
+    }
   });
 
   let touchStartX = 0;

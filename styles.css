@@ -158,3 +158,35 @@ main.gallery {
     max-width: 90vw;
   }
 }
+
+/* Lightbox navigation hover zones */
+.lightbox-zone {
+  position: absolute;
+  top: 0;
+  width: 50%;
+  height: 100%;
+  z-index: 10;
+  cursor: pointer;
+}
+
+.left-zone {
+  left: 0;
+}
+
+.right-zone {
+  right: 0;
+}
+
+#lightbox-img {
+  pointer-events: auto;
+  cursor: zoom-out;
+  z-index: 11;
+}
+
+
+.noscroll {
+  overflow: hidden;
+  height: 100vh;
+  position: fixed;
+  width: 100%;
+}
