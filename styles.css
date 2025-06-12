@@ -44,23 +44,6 @@ nav a {
   opacity: 0.8;
 }
 
-.lightbox {
-  position: fixed;
-  display: none;
-  justify-content: center;
-  align-items: center;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background: rgba(0, 0, 0, 0.8);
-  z-index: 999;
-}
-
-.lightbox img {
-  max-width: 90%;
-  max-height: 90%;
-}
 
 .gallery img {
   width: 100%;
@@ -99,4 +82,28 @@ main.gallery {
   transform: scale(1.03);
   box-shadow: 0 5px 15px rgba(0,0,0,0.3);
   z-index: 10;
+}
+.gallery.masonry {
+  column-count: 2;
+  column-gap: 1rem;
+  padding: 1rem;
+}
+
+@media (min-width: 768px) {
+  .gallery.masonry {
+    column-count: 3;
+  }
+}
+
+.gallery.masonry img {
+  width: 100%;
+  margin-bottom: 1rem;
+  break-inside: avoid;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: opacity 0.3s;
+}
+
+.gallery.masonry img:hover {
+  opacity: 0.85;
 }
