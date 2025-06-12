@@ -25,8 +25,21 @@
   let currentImageIndex = 0;
   let originalWindowWidth = window.innerWidth;
 
-  function loadImages() {
+  function loadImages(initial = false) {
     const gallery = document.getElementById("gallery");
+
+    if (!initial) {
+      imageLayoutData.forEach((data, i) => {
+        const domImg = gallery.children[i];
+        domImg.style.width = `${data.width}px`;
+        domImg.style.height = `${data.height}px`;
+        domImg.style.left = `${data.left}px`;
+        domImg.style.top = `${data.top}px`;
+      });
+      adjustGalleryHeight();
+      return;
+    }
+
     gallery.innerHTML = "";
 
     const totalImages = 22;
@@ -112,11 +125,11 @@
   }
 
   document.addEventListener("DOMContentLoaded", () => {
-    loadImages();
+    loadImages(true);
   });
 
   window.addEventListener("resize", () => {
-    loadImages();
+    loadImages(false);
   });
 
   function openImage(src) {
