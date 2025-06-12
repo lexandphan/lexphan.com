@@ -38,8 +38,9 @@
         ? 5 + Math.random() * 10 // less horizontal spread on mobile
         : Math.random() * 80;
 
+      const imageHeight = window.innerWidth * 0.9 * 1.5; // assume 2:3 aspect ratio (w:h = 0.9vw : 1.5vh)
       const top = isMobile
-        ? i * 200 + Math.random() * 50
+        ? i * imageHeight * 0.9 // 10% vertical overlap
         : i * 250 + Math.random() * 100;
 
       const rotate = Math.floor(Math.random() * 12) - 6;
