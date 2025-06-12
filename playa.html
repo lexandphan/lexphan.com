@@ -118,6 +118,7 @@
         domImg.style.width = `${width}px`;
         domImg.style.height = `${height}px`;
         domImg.style.transform = `rotate(${rotate}deg)`;
+        domImg.setAttribute("data-base-rotate", rotate);
         domImg.style.zIndex = i;
         domImg.loading = "lazy";
         domImg.onload = () => domImg.classList.add("loaded");
@@ -154,9 +155,10 @@
     window.addEventListener('scroll', () => {
       const scrollY = window.scrollY;
       document.querySelectorAll('.scattered-gallery img').forEach(img => {
-        const baseTransform = img.style.transform.split('translateY')[0];
         const offset = scrollY * 0.005;
-        img.style.transform = `${baseTransform} translateY(${offset}px)`;
+        const tilt = (scrollY % 360) * 0.01 - 1.8; // Range: ~[-1.8deg, +1.8deg]
+        const baseRotate = img.getAttribute("data-base-rotate") || "0";
+        img.style.transform = `rotate(${parseFloat(baseRotate) + tilt}deg) translateY(${offset}px)`;
       });
     });
   });

@@ -191,7 +191,7 @@ main.gallery {
 
 @media (min-width: 768px) {
   .scattered-gallery img:hover {
-    transform: scale(1.05) rotate(0deg);
+    transform: scale(1.05) rotate(1.5deg) translateY(0);
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
     z-index: 1000;
   }
