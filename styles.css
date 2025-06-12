@@ -149,6 +149,8 @@ main.gallery {
   max-height: 90vh;
   width: auto;
   height: auto;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
 }
 
 @media (max-width: 768px) {

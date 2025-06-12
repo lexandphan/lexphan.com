@@ -140,6 +140,32 @@
     const nextImgIndex = imageLayoutData[currentImageIndex].imgIndex;
     img.src = `images/playa/${nextImgIndex}.jpg`;
   });
+
+  let touchStartX = 0;
+
+  document.getElementById('lightbox').addEventListener('touchstart', (e) => {
+    touchStartX = e.changedTouches[0].screenX;
+  });
+
+  document.getElementById('lightbox').addEventListener('touchend', (e) => {
+    const touchEndX = e.changedTouches[0].screenX;
+    const swipeDistance = touchEndX - touchStartX;
+
+    const img = document.getElementById('lightbox-img');
+
+    if (swipeDistance > 50) {
+      // Swipe right → previous
+      currentImageIndex = (currentImageIndex - 1 + imageLayoutData.length) % imageLayoutData.length;
+    } else if (swipeDistance < -50) {
+      // Swipe left → next
+      currentImageIndex = (currentImageIndex + 1) % imageLayoutData.length;
+    } else {
+      return; // Not a significant swipe
+    }
+
+    const nextImgIndex = imageLayoutData[currentImageIndex].imgIndex;
+    img.src = `images/playa/${nextImgIndex}.jpg`;
+  });
 </script>
 
 </body>
