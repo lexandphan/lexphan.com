@@ -32,8 +32,9 @@
     const totalImages = 22;
     const isMobile = window.innerWidth < 768;
     const imageGap = 10;
-    const maxCols = isMobile ? 2 : Math.floor(window.innerWidth / 220);
-    const colWidth = (window.innerWidth - (maxCols + 1) * imageGap) / maxCols;
+    const paddingLeft = gallery.getBoundingClientRect().left;
+    const maxCols = isMobile ? 2 : Math.floor((window.innerWidth - 2 * paddingLeft) / 220);
+    const colWidth = (window.innerWidth - 2 * paddingLeft - (maxCols + 1) * imageGap) / maxCols;
     const rowHeights = Array(maxCols).fill(0);
     const imageIndexes = Array.from({ length: totalImages }, (_, i) => i + 1).sort(() => Math.random() - 0.5);
     let imagesLoaded = 0;
@@ -50,7 +51,6 @@
         const height = width * aspectRatio;
         const rotate = Math.floor(Math.random() * 10) - 5;
 
-        // Find the column with the minimum height
         let bestCol = 0;
         let minY = rowHeights[0];
         for (let c = 1; c < maxCols; c++) {
@@ -60,9 +60,8 @@
           }
         }
 
-        const left = imageGap + bestCol * (colWidth + imageGap);
+        const left = paddingLeft + imageGap + bestCol * (colWidth + imageGap);
         const top = minY + imageGap;
-
         rowHeights[bestCol] = top + height;
 
         const placedImage = {
