@@ -47,7 +47,7 @@ nav a {
   cursor: pointer;
   display: block;
   margin-bottom: 1rem;
-  border-radius: 2px;
+  border-radius: 0;
   transition: 0.3s ease-in-out;
 }
 
@@ -69,22 +69,6 @@ main.gallery {
   touch-action: pan-y;
 }
 
-.scattered-photo {
-  position: absolute;
-  --base-rotate: 0deg;
-  cursor: pointer;
-  max-width: 300px;
-  max-height: 300px;
-  transition: transform 0.2s, box-shadow 0.2s;
-  border-radius: 3px;
-  box-shadow: 0 3px 10px rgba(0,0,0,0.2);
-}
-
-.scattered-photo:hover {
-  transform: scale(1.03);
-  box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-  z-index: 10;
-}
 .gallery.masonry {
   column-count: 2;
   column-gap: 1rem;
@@ -102,7 +86,7 @@ main.gallery {
   margin-bottom: 1rem;
   break-inside: avoid;
   cursor: pointer;
-  border-radius: 4px;
+  border-radius: 0;
   transition: opacity 0.3s;
 }
 
@@ -128,7 +112,7 @@ main.gallery {
   opacity: 0;
   cursor: pointer;
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
-  border-radius: 4px;
+  border-radius: 0;
   width: auto;
   height: auto;
   object-fit: contain;
