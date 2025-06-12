@@ -5,24 +5,29 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>playa del taco May 2025</title>
   <style>
-    /* Add these new styles */
-    #physics-container {
+    /* Updated styles */
+    #scattered-gallery {
       position: relative;
       width: 100%;
-      min-height: 100vh;
-      overflow: hidden;
-      touch-action: none;
+      min-height: 150vh; /* Extra space for scrolling */
+      overflow: visible;
+      touch-action: pan-y; /* Allows vertical scrolling */
     }
     
-    .physics-photo {
+    .scattered-photo {
       position: absolute;
       cursor: pointer;
       max-width: 200px;
       max-height: 200px;
-      will-change: transform; /* Improves performance */
+      transition: transform 0.2s;
     }
     
-    /* Keep your existing lightbox styles */
+    .scattered-photo:hover {
+      transform: scale(1.03);
+      z-index: 10;
+    }
+    
+    /* Keep your lightbox styles */
     .lightbox {
       display: none;
       position: fixed;
@@ -51,45 +56,21 @@
     </nav>
   </header>
 
-  <main id="physics-container">
-    <!-- Images will be moved here by JavaScript -->
+  <main id="scattered-gallery">
+    <!-- Images will be positioned here by JavaScript -->
   </main>
 
   <div id="lightbox" class="lightbox" onclick="closeImage()">
     <img id="lightbox-img" src="" alt="Expanded view" />
   </div>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.18.0/matter.min.js"></script>
   <script>
-    // Physics setup - runs after DOM loads
     document.addEventListener("DOMContentLoaded", () => {
-      // Initialize Matter.js
-      const Engine = Matter.Engine,
-            Render = Matter.Render,
-            World = Matter.World,
-            Bodies = Matter.Bodies,
-            Body = Matter.Body;
+      const gallery = document.getElementById('scattered-gallery');
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
       
-      // Create engine
-      const engine = Engine.create({
-        gravity: { x: 0, y: 0.3 } // Gentle downward gravity
-      });
-      
-      // Get container dimensions
-      const container = document.getElementById('physics-container');
-      const containerWidth = container.offsetWidth;
-      const containerHeight = Math.max(container.offsetHeight, window.innerHeight * 1.5);
-      
-      // Create invisible boundaries (larger than viewport for scrolling)
-      const wallOptions = { isStatic: true, render: { visible: false } };
-      const ground = Bodies.rectangle(containerWidth/2, containerHeight + 50, containerWidth + 100, 100, wallOptions);
-      const ceiling = Bodies.rectangle(containerWidth/2, -50, containerWidth + 100, 100, wallOptions);
-      const leftWall = Bodies.rectangle(-50, containerHeight/2, 100, containerHeight + 100, wallOptions);
-      const rightWall = Bodies.rectangle(containerWidth + 50, containerHeight/2, 100, containerHeight + 100, wallOptions);
-      
-      World.add(engine.world, [ground, ceiling, leftWall, rightWall]);
-      
-      // Create photo bodies from your image list
+      // Your image paths
       const images = [
         "images/pdt/1 .jpg", "images/pdt/7.jpg", "images/pdt/8-.jpg", 
         "images/pdt/9.jpg", "images/pdt/10-.jpg", "images/pdt/11.jpg",
@@ -103,85 +84,51 @@
         "images/pdt/35.jpg"
       ];
       
-      const photoBodies = images.map((src, i) => {
-        // Create image element
+      // Create and position images
+      images.forEach((src, i) => {
         const img = document.createElement('img');
         img.src = src;
-        img.className = 'physics-photo';
+        img.className = 'scattered-photo';
         
         // Set alt text from filename
         const fileName = src.split("/").pop().split(".")[0];
         const cleanName = fileName.replace(/[-_]/g, " ");
         img.alt = cleanName.charAt(0).toUpperCase() + cleanName.slice(1);
         
-        // Add to container
-        container.appendChild(img);
+        // Random positioning with constraints
+        const randomX = Math.random() * (viewportWidth * 0.8); 
+        const randomY = Math.random() * (viewportHeight * 2); // Spread vertically
         
-        // Create physics body
-        const x = Math.random() * containerWidth;
-        const y = Math.random() * containerHeight * 0.5; // Start near top
+        // Random rotation (-15deg to +15deg)
+        const randomRotate = (Math.random() * 30) - 15;
         
-        return Bodies.rectangle(x, y, 150, 150, {
-          chamfer: { radius: 15 },
-          friction: 0.1,
-          restitution: 0.6, // Bounciness
-          render: { visible: false }, // Hide the physics body's shape
-          plugin: { imgElement: img } // Store reference to DOM element
+        // Random size variation (80% to 100%)
+        const randomScale = 0.8 + Math.random() * 0.2;
+        
+        img.style.left = `${randomX}px`;
+        img.style.top = `${randomY}px`;
+        img.style.transform = `rotate(${randomRotate}deg) scale(${randomScale})`;
+        
+        // Ensure photos don't cluster at the very top
+        if (i < 5) {
+          img.style.top = `${randomY + 100}px`;
+        }
+        
+        gallery.appendChild(img);
+        
+        // Lightbox click handler
+        img.addEventListener('click', (e) => {
+          e.stopPropagation(); // Prevent triggering on parent elements
+          openImage(src);
         });
       });
       
-      World.add(engine.world, photoBodies);
-      
-      // Sync DOM elements with physics bodies
-      Matter.Events.on(engine, 'afterUpdate', function() {
-        photoBodies.forEach((body, i) => {
-          const img = body.plugin.imgElement;
-          img.style.transform = `translate(${body.position.x - 75}px, ${body.position.y - 75}px) rotate(${body.angle}rad)`;
-        });
+      // Handle window resize
+      window.addEventListener('resize', () => {
+        // You could add responsive adjustments here if needed
       });
       
-      // Make photos draggable
-      let dragStart = null;
-      
-      container.addEventListener('mousedown', (e) => {
-        const mousePosition = { x: e.clientX, y: e.clientY };
-        const body = Matter.Query.point(photoBodies, mousePosition)[0];
-        if (body) {
-          dragStart = { body, offset: { x: mousePosition.x - body.position.x, y: mousePosition.y - body.position.y } };
-          Body.setStatic(body, true);
-        }
-      });
-      
-      container.addEventListener('mousemove', (e) => {
-        if (dragStart) {
-          const { body, offset } = dragStart;
-          Body.setPosition(body, { x: e.clientX - offset.x, y: e.clientY - offset.y });
-        }
-      });
-      
-      container.addEventListener('mouseup', () => {
-        if (dragStart) {
-          Body.setStatic(dragStart.body, false);
-          dragStart = null;
-        }
-      });
-      
-      // Touch support for mobile
-      container.addEventListener('touchstart', (e) => {
-        const touch = e.touches[0];
-        const mousePosition = { x: touch.clientX, y: touch.clientY };
-        const body = Matter.Query.point(photoBodies, mousePosition)[0];
-        if (body) {
-          dragStart = { body, offset: { x: mousePosition.x - body.position.x, y: mousePosition.y - body.position.y } };
-          Body.setStatic(body, true);
-          e.preventDefault(); // Prevent page scroll
-        }
-      }, { passive: false });
-      
-      // Start the physics engine
-      Engine.run(engine);
-      
-      // Keep your existing lightbox functions
+      // Your existing lightbox functions
       function openImage(src) {
         const lightbox = document.getElementById('lightbox');
         const img = document.getElementById('lightbox-img');
@@ -192,11 +139,6 @@
       function closeImage() {
         document.getElementById('lightbox').style.display = 'none';
       }
-      
-      // Attach click handler to each image
-      document.querySelectorAll(".physics-photo").forEach(img => {
-        img.addEventListener("click", () => openImage(img.src));
-      });
     });
   </script>
 </body>
