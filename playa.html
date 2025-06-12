@@ -17,9 +17,7 @@
  <main class="scattered-gallery" id="gallery"></main>
 
 <div id="lightbox" class="lightbox">
-  <div id="lightbox-left" class="lightbox-zone left-zone"></div>
   <img id="lightbox-img" src="" alt="" />
-  <div id="lightbox-right" class="lightbox-zone right-zone"></div>
 </div>
 
 <script>
@@ -39,7 +37,7 @@
     }
 
     const idealImageWidth = 250;
-    const horizontalSpacing = isMobile ? window.innerWidth * 0.05 : 30;
+    const horizontalSpacing = isMobile ? window.innerWidth * 0.05 : 33; // increase by 10%
     const imagesPerRow = isMobile ? 1 : Math.floor(window.innerWidth / (idealImageWidth + horizontalSpacing));
     const verticalSpacing = 40;
 
@@ -47,22 +45,32 @@
       const imageIndexes = Array.from({ length: totalImages }, (_, i) => i + 1).sort(() => Math.random() - 0.5);
       originalWindowWidth = window.innerWidth;
 
-      imageLayoutData = imageIndexes.map((imgIndex, i) => {
+      const columns = Array.from({ length: imagesPerRow }, () => 0); // track current height per column
+
+      imageLayoutData = imageIndexes.map((imgIndex) => {
         const rotate = Math.floor(Math.random() * 10) - 5;
         const width = isMobile ? window.innerWidth * 0.9 : Math.floor(Math.random() * 150) + 250;
         const height = width * 1.5;
 
-        const col = i % imagesPerRow;
-        const row = Math.floor(i / imagesPerRow);
+        let col = 0;
+        if (!isMobile) {
+          // Find column with lowest current height
+          col = columns.indexOf(Math.min(...columns));
+        }
+
         const xOffset = Math.random() * 20 - 10;
         const yOffset = Math.random() * 20 - 10;
 
-        const paddingRight = 20;
+        const paddingRight = 40; // increased from 20
         const maxLeft = window.innerWidth - width - paddingRight;
-        const baseLeft = col * (width + horizontalSpacing);
+        const baseLeft = col * (idealImageWidth + horizontalSpacing);
         const jitter = Math.min(Math.max(baseLeft + xOffset, 0), maxLeft);
         const left = isMobile ? 5 + Math.random() * 10 : jitter;
-        const top = row * (height * 0.85) + yOffset;
+        const top = isMobile ? imageLayoutData.length * (height * 0.9) + yOffset : columns[col] + yOffset;
+
+        if (!isMobile) {
+          columns[col] += height * 0.85;
+        }
 
         return { imgIndex, rotate, left, top, width };
       });
@@ -102,7 +110,7 @@
       }
     });
 
-    gallery.style.height = `${Math.ceil(maxBottom + window.innerHeight * 0.1)}px`;
+    gallery.style.height = `${Math.ceil(maxBottom + window.innerHeight * 0.15)}px`;
   }
 
   document.addEventListener("DOMContentLoaded", () => {
@@ -130,18 +138,6 @@
     document.body.classList.remove('noscroll');
   }
 
-  document.getElementById('lightbox-left').addEventListener('click', () => {
-    currentImageIndex = (currentImageIndex - 1 + imageLayoutData.length) % imageLayoutData.length;
-    const nextImgIndex = imageLayoutData[currentImageIndex].imgIndex;
-    document.getElementById('lightbox-img').src = `images/playa/${nextImgIndex}.jpg`;
-  });
-
-  document.getElementById('lightbox-right').addEventListener('click', () => {
-    currentImageIndex = (currentImageIndex + 1) % imageLayoutData.length;
-    const nextImgIndex = imageLayoutData[currentImageIndex].imgIndex;
-    document.getElementById('lightbox-img').src = `images/playa/${nextImgIndex}.jpg`;
-  });
-
   // Close lightbox when clicking background (but not image)
   document.getElementById('lightbox').addEventListener('click', (e) => {
     if (e.target.id === 'lightbox') {
@@ -151,47 +147,13 @@
 
   document.getElementById('lightbox-img').addEventListener('click', closeImage);
 
-  // Keyboard navigation for lightbox
+  // Keyboard navigation for lightbox (only Escape key)
   document.addEventListener('keydown', (e) => {
     if (document.getElementById('lightbox').style.display === 'flex') {
       if (e.key === 'Escape') {
         closeImage();
-      } else if (e.key === 'ArrowLeft') {
-        currentImageIndex = (currentImageIndex - 1 + imageLayoutData.length) % imageLayoutData.length;
-        const nextImgIndex = imageLayoutData[currentImageIndex].imgIndex;
-        document.getElementById('lightbox-img').src = `images/playa/${nextImgIndex}.jpg`;
-      } else if (e.key === 'ArrowRight') {
-        currentImageIndex = (currentImageIndex + 1) % imageLayoutData.length;
-        const nextImgIndex = imageLayoutData[currentImageIndex].imgIndex;
-        document.getElementById('lightbox-img').src = `images/playa/${nextImgIndex}.jpg`;
       }
     }
-  });
-
-  let touchStartX = 0;
-
-  document.getElementById('lightbox').addEventListener('touchstart', (e) => {
-    touchStartX = e.changedTouches[0].screenX;
-  });
-
-  document.getElementById('lightbox').addEventListener('touchend', (e) => {
-    const touchEndX = e.changedTouches[0].screenX;
-    const swipeDistance = touchEndX - touchStartX;
-
-    const img = document.getElementById('lightbox-img');
-
-    if (swipeDistance > 50) {
-      // Swipe right → previous
-      currentImageIndex = (currentImageIndex - 1 + imageLayoutData.length) % imageLayoutData.length;
-    } else if (swipeDistance < -50) {
-      // Swipe left → next
-      currentImageIndex = (currentImageIndex + 1) % imageLayoutData.length;
-    } else {
-      return; // Not a significant swipe
-    }
-
-    const nextImgIndex = imageLayoutData[currentImageIndex].imgIndex;
-    img.src = `images/playa/${nextImgIndex}.jpg`;
   });
 </script>
 
