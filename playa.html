@@ -22,6 +22,7 @@
 
 <script>
   let imageLayoutData = [];
+  let currentImageIndex = 0;
   let originalWindowWidth = window.innerWidth;
 
   function loadImages() {
@@ -54,7 +55,8 @@
         const xOffset = Math.random() * 20 - 10;
         const yOffset = Math.random() * 20 - 10;
 
-        const maxLeft = window.innerWidth - width;
+        const paddingRight = 20;
+        const maxLeft = window.innerWidth - width - paddingRight;
         const baseLeft = col * (width + horizontalSpacing);
         const jitter = Math.min(Math.max(baseLeft + xOffset, 0), maxLeft);
         const left = isMobile ? 5 + Math.random() * 10 : jitter;
@@ -69,12 +71,14 @@
       img.src = `images/playa/${imgIndex}.jpg`;
       img.alt = `Playa del Taco ${imgIndex}`;
 
-      const scale = window.innerWidth / originalWindowWidth;
-      img.style.left = `${left * scale}px`;
-      img.style.top = `${top * scale}px`;
+      const scaleX = (window.innerWidth - 30) / originalWindowWidth; // account for slight padding
+      img.style.left = `${left * scaleX}px`;
+      img.style.top = `${top * scaleX}px`;
       img.style.transform = `rotate(${rotate}deg)`;
       img.style.zIndex = i;
-      img.style.width = `${width * scale}px`;
+      img.style.width = `${width * scaleX}px`;
+      const shadowOffset = Math.floor(Math.random() * 6) + 2;
+      img.style.boxShadow = `0 ${shadowOffset}px ${shadowOffset * 2}px rgba(0, 0, 0, 0.25)`;
 
       img.addEventListener("click", () => openImage(img.src));
       gallery.appendChild(img);
@@ -96,7 +100,7 @@
       }
     });
 
-    gallery.style.height = `${maxBottom + 100}px`;
+    gallery.style.height = `${Math.ceil(maxBottom + window.innerHeight * 0.1)}px`;
   }
 
   document.addEventListener("DOMContentLoaded", () => {
@@ -110,6 +114,10 @@
   function openImage(src) {
     const lightbox = document.getElementById('lightbox');
     const img = document.getElementById('lightbox-img');
+    const index = imageLayoutData.findIndex(d => src.includes(`${d.imgIndex}.jpg`));
+    if (index !== -1) {
+      currentImageIndex = index;
+    }
     img.src = src;
     lightbox.style.display = 'flex';
   }
@@ -117,6 +125,21 @@
   function closeImage() {
     document.getElementById('lightbox').style.display = 'none';
   }
+
+  document.getElementById('lightbox').addEventListener('click', (e) => {
+    const img = document.getElementById('lightbox-img');
+    const lightboxRect = e.currentTarget.getBoundingClientRect();
+    const clickX = e.clientX - lightboxRect.left;
+
+    if (clickX < lightboxRect.width / 2) {
+      currentImageIndex = (currentImageIndex - 1 + imageLayoutData.length) % imageLayoutData.length;
+    } else {
+      currentImageIndex = (currentImageIndex + 1) % imageLayoutData.length;
+    }
+
+    const nextImgIndex = imageLayoutData[currentImageIndex].imgIndex;
+    img.src = `images/playa/${nextImgIndex}.jpg`;
+  });
 </script>
 
 </body>
