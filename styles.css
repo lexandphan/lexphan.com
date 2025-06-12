@@ -159,13 +159,12 @@ main.gallery {
 }
 
 @media (max-width: 768px) {
+  .scattered-gallery img {
+    max-width: 90vw;
+  }
   .scattered-gallery {
     padding-left: 4.5vw;
     padding-right: 4.5vw;
-  }
-
-  .scattered-gallery img {
-    max-width: 90vw;
   }
 }
 
