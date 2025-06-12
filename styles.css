@@ -107,3 +107,19 @@ main.gallery {
 .gallery.masonry img:hover {
   opacity: 0.85;
 }
+
+.scattered-gallery {
+  position: relative;
+  width: 100%;
+  height: 2500px; /* Adjust as needed depending on how many images */
+  overflow: hidden;
+}
+
+.scattered-gallery img {
+  position: absolute;
+  max-width: 180px;
+  transition: transform 0.2s;
+  cursor: pointer;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+  border-radius: 4px;
+}
