@@ -34,17 +34,20 @@
     const verticalSpacing = 40;
     const usedPositions = [];
 
-    for (let i = 1; i <= totalImages; i++) {
+    const imageIndexes = Array.from({ length: totalImages }, (_, i) => i + 1)
+      .sort(() => Math.random() - 0.5);
+
+    imageIndexes.forEach((imgIndex, i) => {
       const img = document.createElement("img");
-      img.src = `images/playa/${i}.jpg`;
-      img.alt = `Playa del Taco ${i}`;
+      img.src = `images/playa/${imgIndex}.jpg`;
+      img.alt = `Playa del Taco ${imgIndex}`;
 
       const rotate = Math.floor(Math.random() * 10) - 5;
       const width = isMobile ? window.innerWidth * 0.9 : Math.floor(Math.random() * 150) + 200;
       const height = width * 1.5;
 
-      const col = (i - 1) % imagesPerRow;
-      const row = Math.floor((i - 1) / imagesPerRow);
+      const col = i % imagesPerRow;
+      const row = Math.floor(i / imagesPerRow);
       const xOffset = Math.random() * horizontalSpacing - horizontalSpacing / 2;
       const yOffset = Math.random() * verticalSpacing - verticalSpacing / 2;
 
@@ -65,7 +68,7 @@
 
       img.addEventListener("click", () => openImage(img.src));
       gallery.appendChild(img);
-    }
+    });
     adjustGalleryHeight();
   }
 
@@ -86,6 +89,10 @@
   }
 
   document.addEventListener("DOMContentLoaded", () => {
+    loadImages();
+  });
+
+  window.addEventListener("resize", () => {
     loadImages();
   });
 

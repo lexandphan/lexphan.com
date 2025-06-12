@@ -121,6 +121,7 @@ main.gallery {
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.25);
   border-radius: 4px;
   max-width: 100%;
+  height: auto;
 }
 
 .scattered-gallery img:hover {
@@ -146,4 +147,10 @@ main.gallery {
   max-height: 90vh;
   width: auto;
   height: auto;
+}
+
+@media (max-width: 768px) {
+  .scattered-gallery img {
+    max-width: 90vw;
+  }
 }
