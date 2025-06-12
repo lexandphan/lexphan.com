@@ -113,8 +113,8 @@ main.gallery {
   width: 100%;
   max-width: 100%;
   margin: 0 auto;
-  padding-left: 5vw;
-  padding-right: 5vw;
+  padding-left: 3.75vw;
+  padding-right: 3.75vw;
   box-sizing: border-box;
   overflow: visible;
   min-height: 100vh;
@@ -159,6 +159,11 @@ main.gallery {
 }
 
 @media (max-width: 768px) {
+  .scattered-gallery {
+    padding-left: 4.5vw;
+    padding-right: 4.5vw;
+  }
+
   .scattered-gallery img {
     max-width: 90vw;
   }

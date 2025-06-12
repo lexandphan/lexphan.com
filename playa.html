@@ -1,195 +1,22 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>playa del taco May 2025</title>
-  <link rel="stylesheet" href="styles.css" />
-</head>
-<body>
-  <header>
-    <h1><a href="index.html">phanny</a></h1>
-    <nav>
-      <a href="info.html">info</a>
-    </nav>
-  </header>
+.scattered-gallery {
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+  margin: 0 auto;
+  padding-left: 3.75vw;
+  padding-right: 3.75vw;
+  box-sizing: border-box;
+  overflow: visible;
+  min-height: 100vh;
+}
 
- <main class="scattered-gallery" id="gallery"></main>
-
-<div id="lightbox" class="lightbox">
-  <img id="lightbox-img" src="" alt="" />
-</div>
-
-<script>
-  let imageLayoutData = [];
-  let currentImageIndex = 0;
-  let originalWindowWidth = window.innerWidth;
-
-  function loadImages(initial = false) {
-    const gallery = document.getElementById("gallery");
-    const totalImages = 22;
-    const isMobile = window.innerWidth < 768;
-    const imageGap = 10;
-
-    if (!initial) {
-      // Recalculate layout based on window/container size
-      const containerPadding = parseFloat(getComputedStyle(gallery).paddingLeft);
-      const maxCols = isMobile ? 2 : Math.floor((window.innerWidth - 2 * containerPadding) / 220);
-      const colWidth = (window.innerWidth - 2 * containerPadding - (maxCols + 1) * imageGap) / maxCols;
-      const rowHeights = Array(maxCols).fill(0);
-
-      imageLayoutData.forEach((data, i) => {
-        const aspectRatio = data.height / data.width;
-        const width = colWidth;
-        const height = width * aspectRatio;
-
-        let bestCol = 0;
-        let minY = rowHeights[0];
-        for (let c = 1; c < maxCols; c++) {
-          if (rowHeights[c] < minY) {
-            minY = rowHeights[c];
-            bestCol = c;
-          }
-        }
-
-        const left = containerPadding + imageGap + bestCol * (colWidth + imageGap);
-        const top = minY + imageGap;
-        rowHeights[bestCol] = top + height;
-
-        const domImg = gallery.children[i];
-        domImg.style.width = `${width}px`;
-        domImg.style.height = `${height}px`;
-        domImg.style.left = `${left}px`;
-        domImg.style.top = `${top}px`;
-      });
-      adjustGalleryHeight();
-      return;
-    }
-
-    gallery.innerHTML = "";
-
-    const containerPadding = parseFloat(getComputedStyle(gallery).paddingLeft);
-    const maxCols = isMobile ? 2 : Math.floor((window.innerWidth - 2 * containerPadding) / 220);
-    const colWidth = (window.innerWidth - 2 * containerPadding - (maxCols + 1) * imageGap) / maxCols;
-    const rowHeights = Array(maxCols).fill(0);
-    const imageIndexes = Array.from({ length: totalImages }, (_, i) => i + 1).sort(() => Math.random() - 0.5);
-    let imagesLoaded = 0;
-
-    imageLayoutData = [];
-
-    imageIndexes.forEach((imgIndex, i) => {
-      const img = new Image();
-      img.src = `images/playa/${imgIndex}.jpg`;
-
-      img.onload = () => {
-        const aspectRatio = img.naturalHeight / img.naturalWidth;
-        const width = colWidth;
-        const height = width * aspectRatio;
-        const rotate = Math.floor(Math.random() * 10) - 5;
-
-        let bestCol = 0;
-        let minY = rowHeights[0];
-        for (let c = 1; c < maxCols; c++) {
-          if (rowHeights[c] < minY) {
-            minY = rowHeights[c];
-            bestCol = c;
-          }
-        }
-
-        const left = containerPadding + imageGap + bestCol * (colWidth + imageGap);
-        const top = minY + imageGap;
-        rowHeights[bestCol] = top + height;
-
-        const placedImage = {
-          imgIndex,
-          rotate,
-          left,
-          top,
-          width,
-          height
-        };
-        imageLayoutData.push(placedImage);
-
-        const domImg = document.createElement("img");
-        domImg.src = img.src;
-        domImg.alt = `Playa del Taco ${imgIndex}`;
-        domImg.style.left = `${left}px`;
-        domImg.style.top = `${top}px`;
-        domImg.style.width = `${width}px`;
-        domImg.style.height = `${height}px`;
-        domImg.style.transform = `rotate(${rotate}deg)`;
-        domImg.style.zIndex = i;
-
-        domImg.addEventListener("click", () => openImage(domImg.src));
-        gallery.appendChild(domImg);
-
-        imagesLoaded++;
-        if (imagesLoaded === totalImages) {
-          adjustGalleryHeight();
-        }
-      };
-    });
+@media (max-width: 768px) {
+  .scattered-gallery {
+    padding-left: 4.5vw;
+    padding-right: 4.5vw;
   }
 
-  function adjustGalleryHeight() {
-    const gallery = document.getElementById("gallery");
-    const images = gallery.querySelectorAll("img");
-    let maxBottom = 0;
-
-    images.forEach(img => {
-      const top = parseFloat(img.style.top);
-      const height = img.offsetHeight || 0;
-      if (top + height > maxBottom) {
-        maxBottom = top + height;
-      }
-    });
-
-    gallery.style.height = `${Math.ceil(maxBottom + window.innerHeight * 0.15)}px`;
+  .scattered-gallery img {
+    max-width: 90vw;
   }
-
-  document.addEventListener("DOMContentLoaded", () => {
-    loadImages(true);
-  });
-
-  window.addEventListener("resize", () => {
-    loadImages(false);
-  });
-
-  function openImage(src) {
-    const lightbox = document.getElementById('lightbox');
-    const img = document.getElementById('lightbox-img');
-    const index = imageLayoutData.findIndex(d => src.includes(`${d.imgIndex}.jpg`));
-    if (index !== -1) {
-      currentImageIndex = index;
-    }
-    img.src = src;
-    lightbox.style.display = 'flex';
-    document.body.classList.add('noscroll');
-  }
-
-  function closeImage() {
-    document.getElementById('lightbox').style.display = 'none';
-    document.body.classList.remove('noscroll');
-  }
-
-  // Close lightbox when clicking background (but not image)
-  document.getElementById('lightbox').addEventListener('click', (e) => {
-    if (e.target.id === 'lightbox') {
-      closeImage();
-    }
-  });
-
-  document.getElementById('lightbox-img').addEventListener('click', closeImage);
-
-  // Keyboard navigation for lightbox (only Escape key)
-  document.addEventListener('keydown', (e) => {
-    if (document.getElementById('lightbox').style.display === 'flex') {
-      if (e.key === 'Escape') {
-        closeImage();
-      }
-    }
-  });
-</script>
-
-</body>
-</html>
+}
