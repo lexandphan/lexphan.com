@@ -111,18 +111,21 @@ main.gallery {
 .scattered-gallery {
   position: relative;
   width: 100%;
-  height: 2500px; /* Adjust as needed depending on how many images */
   overflow: hidden;
 }
 
 .scattered-gallery img {
   position: absolute;
-  max-width: 180px;
-  max-width: 100%;
-  transition: transform 0.2s;
+  transition: transform 0.2s ease;
   cursor: pointer;
-  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.25);
   border-radius: 4px;
+  max-width: 100%;
+}
+
+.scattered-gallery img:hover {
+  transform: scale(1.03) rotate(0deg);
+  z-index: 10000;
 }
 
 #lightbox {

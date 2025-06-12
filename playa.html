@@ -27,32 +27,41 @@
 
     // Load 25 images from the playa folder
     const totalImages = 22; // change this as needed
+    const isMobile = window.innerWidth < 768;
+
+    const imagesPerRow = isMobile ? 1 : 5;
+    const horizontalSpacing = isMobile ? window.innerWidth * 0.05 : 30;
+    const verticalSpacing = 40;
+    const usedPositions = [];
+
     for (let i = 1; i <= totalImages; i++) {
       const img = document.createElement("img");
       img.src = `images/playa/${i}.jpg`;
       img.alt = `Playa del Taco ${i}`;
 
-      const isMobile = window.innerWidth < 768;
+      const rotate = Math.floor(Math.random() * 10) - 5;
+      const width = isMobile ? window.innerWidth * 0.9 : Math.floor(Math.random() * 150) + 200;
+      const height = width * 1.5;
 
+      const col = (i - 1) % imagesPerRow;
+      const row = Math.floor((i - 1) / imagesPerRow);
+      const xOffset = Math.random() * horizontalSpacing - horizontalSpacing / 2;
+      const yOffset = Math.random() * verticalSpacing - verticalSpacing / 2;
+
+      const maxLeft = window.innerWidth - width - horizontalSpacing;
+      const baseLeft = col * (width + horizontalSpacing);
+      const jitter = Math.min(Math.max(baseLeft + xOffset, 0), maxLeft);
       const left = isMobile
-        ? 5 + Math.random() * 10 // less horizontal spread on mobile
-        : Math.random() * 80;
+        ? 5 + Math.random() * 10
+        : jitter;
 
-      const imageHeight = window.innerWidth * 0.9 * 1.5; // assume 2:3 aspect ratio (w:h = 0.9vw : 1.5vh)
-      const top = i === 0
-        ? 0
-        : isMobile
-          ? i * imageHeight * 0.9 // 10% vertical overlap
-          : i * 250 + Math.random() * 100;
+      const top = row * (height * 0.9) + yOffset;
 
-      const rotate = Math.floor(Math.random() * 12) - 6;
-
-      img.style.position = "absolute";
-      img.style.left = `${left}%`;
+      img.style.left = `${left}px`;
       img.style.top = `${top}px`;
       img.style.transform = `rotate(${rotate}deg)`;
       img.style.zIndex = i;
-      img.style.width = isMobile ? "90vw" : `${Math.min(window.innerWidth * 0.25, 300)}px`;
+      img.style.width = `${width}px`;
 
       img.addEventListener("click", () => openImage(img.src));
       gallery.appendChild(img);
