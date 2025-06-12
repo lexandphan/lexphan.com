@@ -14,81 +14,70 @@
     </nav>
   </header>
 
-  <main id="scattered-gallery">
-    <!-- Images will be positioned here by JavaScript -->
+  <main class="gallery">
+    <img src="images/pdt/1 .jpg"/>
+    <img src="images/pdt/7.jpg"/>
+    <img src="images/pdt/8-.jpg"/>
+    <img src="images/pdt/9.jpg"/>
+    <img src="images/pdt/10-.jpg"/>
+    <img src="images/pdt/11.jpg"/>
+    <img src="images/pdt/12 .jpg"/>
+    <img src="images/pdt/13.jpg"/>
+    <img src="images/pdt/14 .jpg"/>
+    <img src="images/pdt/15.jpg"/>
+    <img src="images/pdt/16.jpg"/>
+    <img src="images/pdt/17.jpg"/>
+    <img src="images/pdt/18 .jpg"/>
+    <img src="images/pdt/19.jpg"/>
+    <img src="images/pdt/21.jpg"/>
+    <img src="images/pdt/22.jpg"/>
+    <img src="images/pdt/23.jpg"/>
+    <img src="images/pdt/24.jpg"/>
+    <img src="images/pdt/25.jpg"/>
+    <img src="images/pdt/26.jpg"/>
+    <img src="images/pdt/27.jpg"/>
+    <img src="images/pdt/28.jpg"/>
+    <img src="images/pdt/29.jpg"/>
+    <img src="images/pdt/30.jpg"/>
+    <img src="images/pdt/31.jpg"/>
+    <img src="images/pdt/32.jpg"/>
+    <img src="images/pdt/33.jpg"/>
+    <img src="images/pdt/35.jpg"/>
+    <!-- Add more photos as needed -->
   </main>
 
-  <div id="lightbox" class="lightbox" onclick="handleLightboxClick(event)">
-    <div class="lightbox-content">
-      <img id="lightbox-img" class="lightbox-img" src="" alt="Expanded view" onclick="event.stopPropagation()"/>
-    </div>
+  <div id="lightbox" class="lightbox" onclick="closeImage()">
+    <img id="lightbox-img" src="" alt="Expanded view" />
   </div>
 
   <script>
-    document.addEventListener("DOMContentLoaded", () => {
-      const gallery = document.getElementById('scattered-gallery');
-      const viewportWidth = window.innerWidth;
-      const viewportHeight = window.innerHeight;
-      
-      const images = [
-        "images/pdt/1 .jpg", "images/pdt/7.jpg", "images/pdt/8-.jpg", 
-        "images/pdt/9.jpg", "images/pdt/10-.jpg", "images/pdt/11.jpg",
-        "images/pdt/12 .jpg", "images/pdt/13.jpg", "images/pdt/14 .jpg",
-        "images/pdt/15.jpg", "images/pdt/16.jpg", "images/pdt/17.jpg",
-        "images/pdt/18 .jpg", "images/pdt/19.jpg", "images/pdt/21.jpg",
-        "images/pdt/22.jpg", "images/pdt/23.jpg", "images/pdt/24.jpg",
-        "images/pdt/25.jpg", "images/pdt/26.jpg", "images/pdt/27.jpg",
-        "images/pdt/28.jpg", "images/pdt/29.jpg", "images/pdt/30.jpg",
-        "images/pdt/31.jpg", "images/pdt/32.jpg", "images/pdt/33.jpg",
-        "images/pdt/35.jpg"
-      ];
-      
-  // Grid spacing calculations
-  const cols = Math.floor(viewportWidth / 350); // Fewer columns for less overlap
-  const colWidth = viewportWidth / cols;
-  const rowHeight = 350; // Increased row height
-  
-  images.forEach((src, i) => {
-    const img = document.createElement('img');
+  function openImage(src) {
+    const lightbox = document.getElementById('lightbox');
+    const img = document.getElementById('lightbox-img');
     img.src = src;
-    img.className = 'scattered-photo';
-    
-    // Set alt text
-    const fileName = src.split("/").pop().split(".")[0];
-    img.alt = fileName.replace(/[-_]/g, " ");
-    
-    // Calculate position in grid with random offsets
-    const col = i % cols;
-    const row = Math.floor(i / cols);
-    
-    // Random offsets (reduced range for less overlap)
-    const xOffset = (Math.random() * 100) - 50; // ±50px
-    const yOffset = (Math.random() * 100) - 50; // ±50px
-    
-    // Base position + random offset
-    const xPos = (col * colWidth) + (colWidth/2) + xOffset;
-    const yPos = (row * rowHeight) + yOffset;
-    
-    // Random rotation (reduced range)
-    const rotation = (Math.random() * 20) - 10; // ±10 degrees
-    
-    img.style.left = `${xPos}px`;
-    img.style.top = `${yPos}px`;
-    img.style.transform = `rotate(${rotation}deg)`;
-    
-    gallery.appendChild(img);
-    
-    // Lightbox click handler
-    img.addEventListener('click', (e) => {
-      e.stopPropagation();
-      openImage(src);
+    lightbox.style.display = 'flex';
+  }
+
+  function closeImage() {
+    document.getElementById('lightbox').style.display = 'none';
+  }
+
+  // Attach click handler to each image
+  document.addEventListener("DOMContentLoaded", () => {
+    document.querySelectorAll(".gallery img").forEach(img => {
+      img.addEventListener("click", () => openImage(img.src));
     });
   });
-  
-  // Adjust gallery height based on content
-  const rows = Math.ceil(images.length / cols);
-  gallery.style.minHeight = `${rows * rowHeight + 200}px`;
-});
-  </script>
+</script>
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    document.querySelectorAll(".gallery img").forEach(img => {
+      const src = img.getAttribute("src");
+      const fileName = src.split("/").pop().split(".")[0];
+      const cleanName = fileName.replace(/[-_]/g, " ");
+      img.setAttribute("alt", cleanName.charAt(0).toUpperCase() + cleanName.slice(1));
+    });
+  });
+</script>
 </body>
 </html>
