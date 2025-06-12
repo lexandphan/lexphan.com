@@ -21,8 +21,9 @@
 </div>
 
 <script>
-  document.addEventListener("DOMContentLoaded", () => {
+  function loadImages() {
     const gallery = document.getElementById("gallery");
+    gallery.innerHTML = "";
 
     // Load 25 images from the playa folder
     const totalImages = 22; // change this as needed
@@ -40,10 +41,16 @@
       img.style.top = `${top}px`;
       img.style.transform = `rotate(${rotate}deg)`;
       img.style.zIndex = i;
+      img.style.width = "25vw";
+      img.style.maxWidth = "200px";
 
       img.addEventListener("click", () => openImage(img.src));
       gallery.appendChild(img);
     }
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    loadImages();
   });
 
   function openImage(src) {
