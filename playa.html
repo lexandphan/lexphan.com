@@ -46,6 +46,7 @@
       originalWindowWidth = window.innerWidth;
 
       const columns = Array.from({ length: imagesPerRow }, () => 0); // track current height per column
+      let mobileRunningTop = 0;
 
       const totalGalleryWidth = imagesPerRow * (idealImageWidth + horizontalSpacing);
       const galleryLeftOffset = (window.innerWidth - totalGalleryWidth) / 2;
@@ -69,7 +70,7 @@
         const baseLeft = isMobile ? 0 : galleryLeftOffset + col * (idealImageWidth + horizontalSpacing);
         const jitter = Math.min(Math.max(baseLeft + xOffset, 0), maxLeft);
         const left = isMobile ? (window.innerWidth - width) / 2 : jitter;
-        const top = isMobile ? imageLayoutData.length * (height * 0.9) + yOffset : columns[col] + yOffset;
+        const top = isMobile ? (mobileRunningTop += height * 0.9 + yOffset) : columns[col] + yOffset;
 
         if (!isMobile) {
           columns[col] += height * 0.85;
