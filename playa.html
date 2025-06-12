@@ -17,7 +17,7 @@
  <main class="scattered-gallery" id="gallery"></main>
 
 <div id="lightbox" class="lightbox" onclick="closeImage()">
-  <img id="lightbox-img" src="" alt="Expanded view" />
+  <img id="lightbox-img" src="" alt="" />
 </div>
 
 <script>
@@ -39,9 +39,11 @@
         : Math.random() * 80;
 
       const imageHeight = window.innerWidth * 0.9 * 1.5; // assume 2:3 aspect ratio (w:h = 0.9vw : 1.5vh)
-      const top = isMobile
-        ? i * imageHeight * 0.9 // 10% vertical overlap
-        : i * 250 + Math.random() * 100;
+      const top = i === 0
+        ? 0
+        : isMobile
+          ? i * imageHeight * 0.9 // 10% vertical overlap
+          : i * 250 + Math.random() * 100;
 
       const rotate = Math.floor(Math.random() * 12) - 6;
 
@@ -51,7 +53,6 @@
       img.style.transform = `rotate(${rotate}deg)`;
       img.style.zIndex = i;
       img.style.width = isMobile ? "90vw" : `${Math.min(window.innerWidth * 0.25, 300)}px`;
-      img.style.maxWidth = "100%";
 
       img.addEventListener("click", () => openImage(img.src));
       gallery.appendChild(img);
@@ -82,21 +83,8 @@
   function openImage(src) {
     const lightbox = document.getElementById('lightbox');
     const img = document.getElementById('lightbox-img');
-    img.style.maxWidth = '90vw';
-    img.style.maxHeight = '90vh';
-    img.style.width = 'auto';
-    img.style.height = 'auto';
     img.src = src;
     lightbox.style.display = 'flex';
-    lightbox.style.position = 'fixed';
-    lightbox.style.top = '0';
-    lightbox.style.left = '0';
-    lightbox.style.width = '100vw';
-    lightbox.style.height = '100vh';
-    lightbox.style.justifyContent = 'center';
-    lightbox.style.alignItems = 'center';
-    lightbox.style.background = 'rgba(0, 0, 0, 0.85)';
-    lightbox.style.zIndex = '9999';
   }
 
   function closeImage() {
