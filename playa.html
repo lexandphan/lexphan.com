@@ -151,15 +151,17 @@
 
   document.addEventListener("DOMContentLoaded", () => {
     loadImages(true);
-    // Subtle parallax tilt effect
+    // Subtle parallax tilt effect (mobile only)
     window.addEventListener('scroll', () => {
-      const scrollY = window.scrollY;
-      document.querySelectorAll('.scattered-gallery img').forEach(img => {
-        const offset = scrollY * 0.005;
-        const tilt = (scrollY % 360) * 0.01 - 1.8; // Range: ~[-1.8deg, +1.8deg]
-        const baseRotate = img.style.getPropertyValue('--base-rotate') || "0deg";
-        img.style.transform = `rotate(calc(${baseRotate} + ${tilt}deg)) translateY(${offset}px)`;
-      });
+      if (window.innerWidth < 768) {
+        const scrollY = window.scrollY;
+        document.querySelectorAll('.scattered-gallery img').forEach(img => {
+          const offset = scrollY * 0.005;
+          const tilt = (scrollY % 360) * 0.01 - 1.8; // Range: ~[-1.8deg, +1.8deg]
+          const baseRotate = img.style.getPropertyValue('--base-rotate') || "0deg";
+          img.style.transform = `rotate(calc(${baseRotate} + ${tilt}deg)) translateY(${offset}px)`;
+        });
+      }
     });
   });
 
