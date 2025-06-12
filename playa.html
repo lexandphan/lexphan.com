@@ -31,67 +31,50 @@
 
     const totalImages = 22;
     const isMobile = window.innerWidth < 768;
+    const imageGap = 10;
+    const maxCols = isMobile ? 2 : Math.floor(window.innerWidth / 200);
+    const colWidth = (window.innerWidth - (maxCols + 1) * imageGap) / maxCols;
+    const rowHeights = Array(maxCols).fill(0);
+    const imageIndexes = Array.from({ length: totalImages }, (_, i) => i + 1).sort(() => Math.random() - 0.5);
 
-    if (window.innerWidth > originalWindowWidth) {
-      imageLayoutData = [];
-    }
+    imageLayoutData = imageIndexes.map((imgIndex) => {
+      const orientation = Math.random() < 0.5 ? 'vertical' : 'horizontal';
+      const width = orientation === 'vertical' ? colWidth : colWidth * 2 + imageGap;
+      const height = orientation === 'vertical' ? colWidth * 1.4 : colWidth * 0.9;
+      const rotate = Math.floor(Math.random() * 10) - 5;
 
-    const idealImageWidth = 250;
-    const horizontalSpacing = isMobile ? window.innerWidth * 0.05 : 33; // increase by 10%
-    const imagesPerRow = isMobile ? 1 : Math.floor(window.innerWidth / (idealImageWidth + horizontalSpacing));
-    const verticalSpacing = 40;
-
-    if (imageLayoutData.length === 0) {
-      const imageIndexes = Array.from({ length: totalImages }, (_, i) => i + 1).sort(() => Math.random() - 0.5);
-      originalWindowWidth = window.innerWidth;
-
-      const columns = Array.from({ length: imagesPerRow }, () => 0); // track current height per column
-      let mobileRunningTop = 0;
-
-      const totalGalleryWidth = imagesPerRow * (idealImageWidth + horizontalSpacing);
-      const galleryLeftOffset = (window.innerWidth * 0.90 - totalGalleryWidth) / 2 + window.innerWidth * 0.05;
-
-      imageLayoutData = imageIndexes.map((imgIndex) => {
-        const rotate = Math.floor(Math.random() * 10) - 5;
-        const width = isMobile ? window.innerWidth * 0.9 : Math.floor(Math.random() * 150) + 250;
-        const height = width * 1.5;
-
-        let col = 0;
-        if (!isMobile) {
-          // Find column with lowest current height
-          col = columns.indexOf(Math.min(...columns));
+      // Find best starting column based on orientation
+      let bestCol = 0;
+      let minY = Infinity;
+      for (let c = 0; c <= maxCols - (orientation === 'vertical' ? 1 : 2); c++) {
+        const maxHeight = Math.max(...rowHeights.slice(c, c + (orientation === 'vertical' ? 1 : 2)));
+        if (maxHeight < minY) {
+          bestCol = c;
+          minY = maxHeight;
         }
+      }
 
-        const xOffset = Math.random() * 20 - 10;
-        const yOffset = Math.random() * 20 - 10;
+      const left = imageGap + bestCol * (colWidth + imageGap);
+      const top = minY + imageGap;
 
-        const paddingRight = 40; // increased from 20
-        const maxLeft = window.innerWidth - width - paddingRight;
-        const baseLeft = isMobile ? 0 : galleryLeftOffset + col * (idealImageWidth + horizontalSpacing);
-        const jitter = Math.min(Math.max(baseLeft + xOffset, 0), maxLeft);
-        const left = isMobile ? (window.innerWidth - width) / 2 : jitter;
-        const top = isMobile ? (mobileRunningTop += height * 0.9 + yOffset) : columns[col] + yOffset;
+      // Update row heights
+      for (let i = 0; i < (orientation === 'vertical' ? 1 : 2); i++) {
+        rowHeights[bestCol + i] = top + height;
+      }
 
-        if (!isMobile) {
-          columns[col] += height * 0.85;
-        }
+      return { imgIndex, rotate, left, top, width, height };
+    });
 
-        return { imgIndex, rotate, left, top, width };
-      });
-    }
-
-    imageLayoutData.forEach(({ imgIndex, rotate, left, top, width }, i) => {
+    imageLayoutData.forEach(({ imgIndex, rotate, left, top, width, height }, i) => {
       const img = document.createElement("img");
       img.src = `images/playa/${imgIndex}.jpg`;
       img.alt = `Playa del Taco ${imgIndex}`;
-
       img.style.left = `${left}px`;
       img.style.top = `${top}px`;
+      img.style.width = `${width}px`;
+      img.style.height = `${height}px`;
       img.style.transform = `rotate(${rotate}deg)`;
       img.style.zIndex = i;
-      img.style.width = `${width}px`;
-      const shadowOffset = Math.floor(Math.random() * 6) + 2;
-      img.style.boxShadow = `0 ${shadowOffset}px ${shadowOffset * 2}px rgba(0, 0, 0, 0.25)`;
 
       img.addEventListener("click", () => openImage(img.src));
       gallery.appendChild(img);
