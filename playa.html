@@ -27,14 +27,40 @@
 
   function loadImages(initial = false) {
     const gallery = document.getElementById("gallery");
+    const totalImages = 22;
+    const isMobile = window.innerWidth < 768;
+    const imageGap = 10;
 
     if (!initial) {
+      // Recalculate layout based on window/container size
+      const containerPadding = parseFloat(getComputedStyle(gallery).paddingLeft);
+      const maxCols = isMobile ? 2 : Math.floor((window.innerWidth - 2 * containerPadding) / 220);
+      const colWidth = (window.innerWidth - 2 * containerPadding - (maxCols + 1) * imageGap) / maxCols;
+      const rowHeights = Array(maxCols).fill(0);
+
       imageLayoutData.forEach((data, i) => {
+        const aspectRatio = data.height / data.width;
+        const width = colWidth;
+        const height = width * aspectRatio;
+
+        let bestCol = 0;
+        let minY = rowHeights[0];
+        for (let c = 1; c < maxCols; c++) {
+          if (rowHeights[c] < minY) {
+            minY = rowHeights[c];
+            bestCol = c;
+          }
+        }
+
+        const left = containerPadding + imageGap + bestCol * (colWidth + imageGap);
+        const top = minY + imageGap;
+        rowHeights[bestCol] = top + height;
+
         const domImg = gallery.children[i];
-        domImg.style.width = `${data.width}px`;
-        domImg.style.height = `${data.height}px`;
-        domImg.style.left = `${data.left}px`;
-        domImg.style.top = `${data.top}px`;
+        domImg.style.width = `${width}px`;
+        domImg.style.height = `${height}px`;
+        domImg.style.left = `${left}px`;
+        domImg.style.top = `${top}px`;
       });
       adjustGalleryHeight();
       return;
@@ -42,12 +68,9 @@
 
     gallery.innerHTML = "";
 
-    const totalImages = 22;
-    const isMobile = window.innerWidth < 768;
-    const imageGap = 10;
-    const paddingLeft = gallery.getBoundingClientRect().left;
-    const maxCols = isMobile ? 2 : Math.floor((window.innerWidth - 2 * paddingLeft) / 220);
-    const colWidth = (window.innerWidth - 2 * paddingLeft - (maxCols + 1) * imageGap) / maxCols;
+    const containerPadding = parseFloat(getComputedStyle(gallery).paddingLeft);
+    const maxCols = isMobile ? 2 : Math.floor((window.innerWidth - 2 * containerPadding) / 220);
+    const colWidth = (window.innerWidth - 2 * containerPadding - (maxCols + 1) * imageGap) / maxCols;
     const rowHeights = Array(maxCols).fill(0);
     const imageIndexes = Array.from({ length: totalImages }, (_, i) => i + 1).sort(() => Math.random() - 0.5);
     let imagesLoaded = 0;
@@ -73,7 +96,7 @@
           }
         }
 
-        const left = paddingLeft + imageGap + bestCol * (colWidth + imageGap);
+        const left = containerPadding + imageGap + bestCol * (colWidth + imageGap);
         const top = minY + imageGap;
         rowHeights[bestCol] = top + height;
 
