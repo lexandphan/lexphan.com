@@ -118,9 +118,7 @@
         domImg.style.width = `${width}px`;
         domImg.style.height = `${height}px`;
         domImg.style.setProperty('--base-rotate', `${rotate}deg`);
-        domImg.style.setProperty('--hover-rotate', '0deg');
-        domImg.style.transform = `rotate(calc(var(--base-rotate) + var(--hover-rotate)))`;
-        domImg.classList.add("hover-tilt");
+        domImg.style.transform = `rotate(calc(var(--base-rotate)))`;
         domImg.style.zIndex = i;
         domImg.style.transition = "transform 0.3s ease, box-shadow 0.3s ease";
         domImg.loading = "lazy";
@@ -167,8 +165,8 @@
 
           const phaseOffset = parseFloat(img.dataset.randomTilt);
           const tilt = Math.sin((scrollY + i * 30) * 0.01 + phaseOffset * 2) * 2;
-          const baseRotate = img.style.getPropertyValue('--base-rotate') || "0deg";
-          img.style.transform = `rotate(calc(${baseRotate} + ${tilt}deg)) translateY(${offset}px)`;
+          const rotate = parseFloat(img.style.getPropertyValue('--base-rotate')) || 0;
+          img.style.transform = `rotate(${rotate + tilt}deg) translateY(${offset}px)`;
         });
       }
     });

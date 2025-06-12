@@ -126,6 +126,14 @@ main.gallery {
     top 0.2s ease;
 }
 
+@media (min-width: 768px) {
+  .scattered-gallery img:hover {
+    transform: scale(1.1) rotate(0deg);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+    z-index: 1000;
+  }
+}
+
 #lightbox {
   display: none;
   position: fixed;
@@ -172,20 +180,4 @@ main.gallery {
   height: 100vh;
   position: fixed;
   width: 100%;
-}
-
-@media (min-width: 768px) {
-  .scattered-gallery img {
-    transition:
-      opacity 0.3s ease,
-      transform 0.3s ease,
-      box-shadow 0.3s ease;
-  }
-
-  .scattered-gallery img:hover {
-    --hover-rotate: 6deg;
-    transform: rotate(calc(var(--base-rotate) + var(--hover-rotate))) scale(1.07);
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
-    z-index: 1000;
-  }
 }
