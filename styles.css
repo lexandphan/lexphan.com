@@ -127,10 +127,13 @@ main.gallery {
 }
 
 @media (min-width: 768px) {
+  .scattered-gallery img {
+    z-index: 0;
+  }
   .scattered-gallery img:hover {
     transform: scale(1.1) rotate(0deg) !important;
-    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
-    z-index: 1000;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45) !important;
+    z-index: 9999;
   }
 }
 
