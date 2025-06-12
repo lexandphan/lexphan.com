@@ -118,7 +118,7 @@
         domImg.style.width = `${width}px`;
         domImg.style.height = `${height}px`;
         domImg.style.setProperty('--base-rotate', `${rotate}deg`);
-        domImg.style.transform = `rotate(calc(${rotate}deg))`;
+        domImg.style.transform = `rotate(var(--base-rotate))`;
         domImg.style.zIndex = i;
         domImg.loading = "lazy";
         domImg.onload = () => domImg.classList.add("loaded");
@@ -156,13 +156,13 @@
       if (window.innerWidth < 768) {
         document.querySelectorAll('.scattered-gallery img').forEach((img, i) => {
           const scrollY = window.scrollY;
-          const offset = scrollY * 0.005;
+          const offset = scrollY * 0.01;
 
           if (!img.dataset.randomTilt) {
             img.dataset.randomTilt = (Math.random() * 2 - 1.2).toFixed(2); // -1.2 to +0.8
           }
 
-          const tilt = scrollY * 0.002 * parseFloat(img.dataset.randomTilt);
+          const tilt = scrollY * 0.005 * parseFloat(img.dataset.randomTilt);
           const baseRotate = img.style.getPropertyValue('--base-rotate') || "0deg";
           img.style.transform = `rotate(calc(${baseRotate} + ${tilt}deg)) translateY(${offset}px)`;
         });
