@@ -111,7 +111,7 @@ main.gallery {
 .scattered-gallery {
   position: relative;
   width: 100%;
-  max-width: 1600px;
+  max-width: 100%;
   margin: 0 auto;
   padding-left: 5vw;
   padding-right: 5vw;
@@ -126,7 +126,7 @@ main.gallery {
   cursor: pointer;
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
   border-radius: 4px;
-  max-width: none;
+  width: auto;
   height: auto;
   object-fit: contain;
 }
