@@ -90,7 +90,7 @@ main.gallery {
 #scattered-gallery {
   position: relative;
   width: 100%;
-  min-height: 150vh;
+  min-height: 200vh; 
   padding: 20px;
   overflow: visible;
   touch-action: pan-y;
@@ -99,12 +99,16 @@ main.gallery {
 .scattered-photo {
   position: absolute;
   cursor: pointer;
-  max-width: 200px;
-  max-height: 200px;
+  width: 300px; /* Increased base size */
+  height: auto;
+  max-width: 30vw; /* Responsive maximum */
+  max-height: 30vh;
   transition: transform 0.2s, box-shadow 0.2s;
   border-radius: 3px;
   box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+  object-fit: contain; /* Ensures proper aspect ratio */
 }
+
 
 .scattered-photo:hover {
   transform: scale(1.03);
