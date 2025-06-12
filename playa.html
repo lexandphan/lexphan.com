@@ -5,6 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>playa del taco May 2025</title>
   <link rel="stylesheet" href="styles.css" />
+  <style>
+    #gallery {
+      visibility: hidden;
+    }
+  </style>
 </head>
 <body>
   <header>
@@ -29,12 +34,13 @@
     const gallery = document.getElementById("gallery");
     const totalImages = 22;
     const isMobile = window.innerWidth < 768;
+
     const imageGap = 10;
 
     if (!initial) {
       // Recalculate layout based on window/container size
       const containerPadding = parseFloat(getComputedStyle(gallery).paddingLeft);
-      const maxCols = isMobile ? 2 : Math.floor((window.innerWidth - 2 * containerPadding) / 220);
+      const maxCols = isMobile ? 2 : Math.floor((window.innerWidth - 2 * containerPadding) / 325);
       const colWidth = (window.innerWidth - 2 * containerPadding - (maxCols + 1) * imageGap) / maxCols;
       const rowHeights = Array(maxCols).fill(0);
 
@@ -120,6 +126,12 @@
         domImg.style.setProperty('--base-rotate', `${rotate}deg`);
         domImg.style.transform = `rotate(calc(var(--base-rotate)))`;
         domImg.style.zIndex = i;
+        domImg.addEventListener("mouseenter", () => {
+          domImg.style.zIndex = 9999;
+        });
+        domImg.addEventListener("mouseleave", () => {
+          domImg.style.zIndex = i;
+        });
         domImg.style.transition = "transform 0.3s ease, box-shadow 0.3s ease";
         domImg.loading = "lazy";
         domImg.onload = () => domImg.classList.add("loaded");
@@ -128,7 +140,11 @@
 
         imagesLoaded++;
         if (imagesLoaded === totalImages) {
-          adjustGalleryHeight();
+          // Wait a bit to ensure layout metrics are accurate
+          setTimeout(() => {
+            loadImages(false);
+            gallery.style.visibility = 'visible';
+          }, 10);
         }
       };
     });
@@ -157,7 +173,7 @@
       if (window.innerWidth < 768) {
         document.querySelectorAll('.scattered-gallery img').forEach((img, i) => {
           const scrollY = window.scrollY;
-          const offset = scrollY * 0.01;
+          const offset = scrollY * 0.02; // stronger vertical parallax shift
 
           if (!img.dataset.randomTilt) {
             img.dataset.randomTilt = (Math.random() * 2 - 1.2).toFixed(2); // -1.2 to +0.8
@@ -165,8 +181,9 @@
 
           const phaseOffset = parseFloat(img.dataset.randomTilt);
           const tilt = Math.sin((scrollY + i * 30) * 0.01 + phaseOffset * 2) * 2;
-          const rotate = parseFloat(img.style.getPropertyValue('--base-rotate')) || 0;
-          img.style.transform = `rotate(${rotate + tilt}deg) translateY(${offset}px)`;
+          const baseRotate = parseFloat(img.style.getPropertyValue('--base-rotate')) || 0;
+
+          img.style.transform = `rotate(${baseRotate + tilt}deg) translateY(${offset}px)`;
         });
       }
     });

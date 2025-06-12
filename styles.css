@@ -4,6 +4,8 @@
 .scattered-gallery img:hover {
   transform: scale(1.03) rotate(0deg);
   z-index: 10000;
+  will-change: transform, z-index;
+  backface-visibility: hidden;
 }
 
 body {
@@ -124,17 +126,19 @@ main.gallery {
     height 0.2s ease,
     left 0.2s ease,
     top 0.2s ease;
+  will-change: transform, z-index;
+  backface-visibility: hidden;
 }
 
 @media (min-width: 768px) {
   .scattered-gallery img {
     z-index: 0;
-    max-width: 150%;
-    max-height: 150%;
+    max-width: 200%;
+    max-height: 200%;
   }
   .scattered-gallery img:hover {
     position: absolute;
-    transform: scale(1.1) rotate(0deg) !important;
+    transform: scale(1.125) rotate(0deg) !important;
     box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45) !important;
     z-index: 9999;
   }
@@ -173,13 +177,11 @@ main.gallery {
   }
 }
 
-
 #lightbox-img {
   pointer-events: auto;
   cursor: zoom-out;
   z-index: 11;
 }
-
 
 .noscroll {
   overflow: hidden;
