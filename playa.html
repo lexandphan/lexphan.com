@@ -119,6 +119,7 @@
         domImg.style.height = `${height}px`;
         domImg.style.setProperty('--base-rotate', `${rotate}deg`);
         domImg.style.transform = `rotate(var(--base-rotate))`;
+        domImg.classList.add("hover-tilt");
         domImg.style.zIndex = i;
         domImg.style.transition = "transform 0.3s ease, box-shadow 0.3s ease";
         domImg.loading = "lazy";
