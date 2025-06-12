@@ -112,6 +112,8 @@ main.gallery {
   position: relative;
   width: 100%;
   overflow: hidden;
+  max-width: 1600px;
+  margin: 0 auto;
 }
 
 .scattered-gallery img {

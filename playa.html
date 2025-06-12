@@ -31,8 +31,13 @@
     const totalImages = 22;
     const isMobile = window.innerWidth < 768;
 
-    const imagesPerRow = isMobile ? 1 : 5;
+    if (window.innerWidth > originalWindowWidth) {
+      imageLayoutData = [];
+    }
+
+    const idealImageWidth = 250;
     const horizontalSpacing = isMobile ? window.innerWidth * 0.05 : 30;
+    const imagesPerRow = isMobile ? 1 : Math.floor(window.innerWidth / (idealImageWidth + horizontalSpacing));
     const verticalSpacing = 40;
 
     if (imageLayoutData.length === 0) {
@@ -41,19 +46,19 @@
 
       imageLayoutData = imageIndexes.map((imgIndex, i) => {
         const rotate = Math.floor(Math.random() * 10) - 5;
-        const width = isMobile ? window.innerWidth * 0.9 : Math.floor(Math.random() * 150) + 200;
+        const width = isMobile ? window.innerWidth * 0.9 : Math.floor(Math.random() * 150) + 250;
         const height = width * 1.5;
 
         const col = i % imagesPerRow;
         const row = Math.floor(i / imagesPerRow);
-        const xOffset = Math.random() * horizontalSpacing - horizontalSpacing / 2;
-        const yOffset = Math.random() * verticalSpacing - verticalSpacing / 2;
+        const xOffset = Math.random() * 20 - 10;
+        const yOffset = Math.random() * 20 - 10;
 
-        const maxLeft = window.innerWidth - width - horizontalSpacing;
+        const maxLeft = window.innerWidth - width;
         const baseLeft = col * (width + horizontalSpacing);
         const jitter = Math.min(Math.max(baseLeft + xOffset, 0), maxLeft);
         const left = isMobile ? 5 + Math.random() * 10 : jitter;
-        const top = row * (height * 0.9) + yOffset;
+        const top = row * (height * 0.85) + yOffset;
 
         return { imgIndex, rotate, left, top, width };
       });
