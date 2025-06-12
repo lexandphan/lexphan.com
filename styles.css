@@ -11,7 +11,6 @@
   z-index: 10000;
 }
 
-#lightbox {
 body {
   margin: 0;
   font-family: Helvetica, Arial, sans-serif;
@@ -51,21 +50,14 @@ nav a {
   width: 100%;
   height: auto;
   cursor: pointer;
+  display: block;
+  margin-bottom: 1rem;
+  border-radius: 2px;
   transition: 0.3s ease-in-out;
 }
 
 .gallery img:hover {
   opacity: 0.8;
-}
-
-
-.gallery img {
-  width: 100%;
-  height: auto;
-  cursor: pointer;
-  display: block;
-  margin-bottom: 1rem;
-  border-radius: 2px;
 }
 
 main.gallery {
@@ -190,12 +182,6 @@ main.gallery {
 }
 
 
-.noscroll {
-  overflow: hidden;
-  height: 100vh;
-  position: fixed;
-  width: 100%;
-}
 .noscroll {
   overflow: hidden;
   height: 100vh;
