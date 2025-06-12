@@ -129,6 +129,8 @@ main.gallery {
 @media (min-width: 768px) {
   .scattered-gallery img {
     z-index: 0;
+    max-width: 150%;
+    max-height: 150%;
   }
   .scattered-gallery img:hover {
     position: absolute;
