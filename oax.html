@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Oaxaca</title>
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    #gallery {
+      visibility: hidden;
+    }
+    .fade-in {
+      opacity: 0;
+      transform: translateY(20px);
+      transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+    }
+
+    .fade-in.visible {
+      opacity: 1;
+      transform: translateY(0) scale(1.02);
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1><a href="index.html">phanny</a></h1>
+    <nav>
+      <a href="info.html">info</a>
+    </nav>
+  </header>
+
+ <main class="scattered-gallery" id="gallery"></main>
+
+<div id="lightbox" class="lightbox">
+  <div id="lightbox-swipe-area">
+    <img id="lightbox-img" src="" alt="" />
+  </div>
+</div>
+
+<script>
+  let imageLayoutData = [];
+  let currentImageIndex = 0;
+  let originalWindowWidth = window.innerWidth;
+
+  function loadImages(initial = false) {
+    const gallery = document.getElementById("gallery");
+    const totalImages = 13;
+    const isMobile = window.innerWidth < 768;
+
+    const imageGap = 10;
+
+    if (!initial) {
+      // Recalculate layout based on window/container size
+      const containerPadding = parseFloat(getComputedStyle(gallery).paddingLeft);
+      const maxCols = isMobile ? 2 : Math.floor((window.innerWidth - 2 * containerPadding) / 325);
+      const colWidth = (window.innerWidth - 2 * containerPadding - (maxCols + 1) * imageGap) / maxCols;
+      const rowHeights = Array(maxCols).fill(0);
+
+      imageLayoutData.forEach((data, i) => {
+        const aspectRatio = data.height / data.width;
+        const width = colWidth;
+        const height = width * aspectRatio;
+
+        let bestCol = 0;
+        let minY = rowHeights[0];
+        for (let c = 1; c < maxCols; c++) {
+          if (rowHeights[c] < minY) {
+            minY = rowHeights[c];
+            bestCol = c;
+          }
+        }
+
+        const left = containerPadding + imageGap + bestCol * (colWidth + imageGap);
+        const top = minY + imageGap;
+        rowHeights[bestCol] = top + height;
+
+        const domImg = gallery.children[i];
+        domImg.style.width = `${width}px`;
+        domImg.style.height = `${height}px`;
+        domImg.style.left = `${left}px`;
+        domImg.style.top = `${top}px`;
+      });
+      adjustGalleryHeight();
+      return;
+    }
+
+    gallery.innerHTML = "";
+
+    const containerPadding = parseFloat(getComputedStyle(gallery).paddingLeft);
+    const maxCols = isMobile ? 2 : Math.floor((window.innerWidth - 2 * containerPadding) / 220);
+    const colWidth = (window.innerWidth - 2 * containerPadding - (maxCols + 1) * imageGap) / maxCols;
+    const rowHeights = Array(maxCols).fill(0);
+    const imageIndexes = Array.from({ length: totalImages }, (_, i) => i + 1).sort(() => Math.random() - 0.5);
+    let imagesLoaded = 0;
+
+    imageLayoutData = [];
+
+    imageIndexes.forEach((imgIndex, i) => {
+      const img = new Image();
+      img.src = `images/oax/${imgIndex}.jpg`;
+
+      img.onload = () => {
+        const aspectRatio = img.naturalHeight / img.naturalWidth;
+        const width = colWidth;
+        const height = width * aspectRatio;
+        const rotate = Math.floor(Math.random() * 10) - 5;
+
+        let bestCol = 0;
+        let minY = rowHeights[0];
+        for (let c = 1; c < maxCols; c++) {
+          if (rowHeights[c] < minY) {
+            minY = rowHeights[c];
+            bestCol = c;
+          }
+        }
+
+        const left = containerPadding + imageGap + bestCol * (colWidth + imageGap);
+        const top = minY + imageGap;
+        rowHeights[bestCol] = top + height;
+
+        const placedImage = {
+          imgIndex,
+          rotate,
+          left,
+          top,
+          width,
+          height
+        };
+        imageLayoutData.push(placedImage);
+
+        const domImg = document.createElement("img");
+        domImg.src = img.src;
+        domImg.alt = `oax ${imgIndex}`;
+        // Set the alt text for accessibility and image descriptions (not shown visually)
+        domImg.style.left = `${left}px`;
+        domImg.style.top = `${top}px`;
+        domImg.style.width = `${width}px`;
+        domImg.style.height = `${height}px`;
+        domImg.style.setProperty('--base-rotate', `${rotate}deg`);
+        domImg.style.transform = `rotate(calc(var(--base-rotate)))`;
+        domImg.style.zIndex = i;
+        domImg.addEventListener("mouseenter", () => {
+          domImg.style.zIndex = 9999;
+        });
+        domImg.addEventListener("mouseleave", () => {
+          domImg.style.zIndex = i;
+        });
+        domImg.style.transition = "transform 0.3s ease, box-shadow 0.3s ease";
+        domImg.loading = "lazy";
+        domImg.onload = () => {
+          domImg.classList.add("loaded");
+          domImg.classList.add("fade-in");
+        };
+        domImg.addEventListener("click", () => openImage(domImg.src));
+        gallery.appendChild(domImg);
+
+        imagesLoaded++;
+        if (imagesLoaded === totalImages) {
+          // Wait a bit to ensure layout metrics are accurate
+          setTimeout(() => {
+            loadImages(false);
+            gallery.style.visibility = 'visible';
+
+            const observer = new IntersectionObserver((entries) => {
+              entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                  entry.target.classList.add('visible');
+                }
+              });
+            }, {
+              threshold: 0.1
+            });
+
+            document.querySelectorAll('.fade-in').forEach(img => {
+              observer.observe(img);
+            });
+          }, 10);
+        }
+      };
+    });
+  }
+
+  function adjustGalleryHeight() {
+    const gallery = document.getElementById("gallery");
+    const images = gallery.querySelectorAll("img");
+    let maxBottom = 0;
+
+    images.forEach(img => {
+      const top = parseFloat(img.style.top);
+      const height = img.offsetHeight || 0;
+      if (top + height > maxBottom) {
+        maxBottom = top + height;
+      }
+    });
+
+    gallery.style.height = `${Math.ceil(maxBottom + window.innerHeight * 0.15)}px`;
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    loadImages(true);
+    // Subtle parallax tilt effect (mobile only)
+    window.addEventListener('scroll', () => {
+      if (window.innerWidth < 768) {
+        document.querySelectorAll('.scattered-gallery img').forEach((img, i) => {
+          const scrollY = window.scrollY;
+          const offset = scrollY * 0.02; // stronger vertical parallax shift
+
+          if (!img.dataset.randomTilt) {
+            img.dataset.randomTilt = (Math.random() * 2 - 1.2).toFixed(2); // -1.2 to +0.8
+          }
+          // 25% chance pulse assignment
+          if (!img.dataset.shouldPulse) {
+            img.dataset.shouldPulse = Math.random() < 0.50 ? "true" : "false"; // ~25% chance
+          }
+
+          const phaseOffset = parseFloat(img.dataset.randomTilt);
+          const tilt = Math.sin((scrollY + i * 30) * 0.005 + phaseOffset * 2) * 1.5;
+          const baseRotate = parseFloat(img.style.getPropertyValue('--base-rotate')) || 0;
+
+          img.style.transform = `rotate(${baseRotate + tilt}deg) translateY(${offset}px)`;
+          if (img.dataset.shouldPulse === "true") {
+            const scale = 1 + 0.1 * Math.abs(Math.sin(scrollY * 0.005 + i));
+            img.style.transform += ` scale(${scale})`;
+          }
+        });
+      }
+    });
+  });
+
+  window.addEventListener("resize", () => {
+    loadImages(false);
+  });
+
+  function showNextImage() {
+    if (currentImageIndex < imageLayoutData.length - 1) {
+      currentImageIndex++;
+      document.getElementById('lightbox-img').src = `images/oax/${imageLayoutData[currentImageIndex].imgIndex}.jpg`;
+      // document.getElementById('lightbox-caption').textContent = `Playa del Taco ${imageLayoutData[currentImageIndex].imgIndex}`;
+    }
+  }
+
+  function showPrevImage() {
+    if (currentImageIndex > 0) {
+      currentImageIndex--;
+      document.getElementById('lightbox-img').src = `images/oax/${imageLayoutData[currentImageIndex].imgIndex}.jpg`;
+      // document.getElementById('lightbox-caption').textContent = `Playa del Taco ${imageLayoutData[currentImageIndex].imgIndex}`;
+    }
+  }
+
+  function openImage(src) {
+    const lightbox = document.getElementById('lightbox');
+    const img = document.getElementById('lightbox-img');
+    const index = imageLayoutData.findIndex(d => src.includes(`${d.imgIndex}.jpg`));
+    if (index !== -1) {
+      currentImageIndex = index;
+    }
+    img.src = src;
+    // document.getElementById('lightbox-caption').textContent = img.alt;
+    lightbox.style.display = 'flex';
+    document.body.classList.add('noscroll');
+  }
+
+  function closeImage() {
+    document.getElementById('lightbox').style.display = 'none';
+    document.body.classList.remove('noscroll');
+  }
+
+  // Close lightbox when clicking background (but not image)
+  document.getElementById('lightbox').addEventListener('click', (e) => {
+    if (e.target.id === 'lightbox') {
+      closeImage();
+    }
+  });
+
+  document.getElementById('lightbox-img').addEventListener('click', closeImage);
+
+  // Keyboard navigation for lightbox (only Escape key)
+  document.addEventListener('keydown', (e) => {
+    if (document.getElementById('lightbox').style.display === 'flex') {
+      if (e.key === 'Escape') {
+        closeImage();
+      }
+    }
+  });
+
+  // --- Swipe detection for lightbox ---
+  let startX = 0;
+  let isSwiping = false;
+
+  const swipeArea = document.getElementById('lightbox-swipe-area');
+  const lightboxImg = document.getElementById('lightbox-img');
+
+  swipeArea.addEventListener('touchstart', (e) => {
+    startX = e.touches[0].clientX;
+    isSwiping = true;
+  });
+
+  swipeArea.addEventListener('touchmove', (e) => {
+    if (!isSwiping) return;
+    const diffX = e.touches[0].clientX - startX;
+    if (Math.abs(diffX) > 50) {
+      isSwiping = false;
+      if (diffX > 0) {
+        showPrevImage();
+      } else {
+        showNextImage();
+      }
+    }
+  });
+
+  swipeArea.addEventListener('touchend', () => {
+    isSwiping = false;
+  });
+</script>
+
+</body>
+</html>
