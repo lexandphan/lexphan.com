@@ -6,7 +6,7 @@
   <title>phan's photo dump</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
-<body>
+<body class="index-page">
   <header>
     <h1><a href="index.html">phanny</a></h1>
     <nav>
@@ -14,28 +14,78 @@
     </nav>
   </header>
 
-  <main class="gallery masonry">
-    <a href="playa.html"><img src="images/playa/2.jpg" alt="Playa del Taco Album" /></a>
-    <a href="pdt.html"><img src="images/pdt/26.jpg" alt="pdt Album" /></a>
-    <a href="cdmx.html"><img src="images/cdmx/9.jpg" alt="cdmx Album" /></a>
-    <a href="oax.html"><img src="images/oax/8.jpg" alt="Oax Album" /></a>
+  <main id="gallery" class="scattered-gallery">
+      <a href="album.html?album=playa&count=12">
+    <img src="images/playa/2.jpg" alt="PDT1" />
+      </a>
+      <a href="album.html?album=pdt&count=18">
+    <img src="images/pdt/26.jpg" alt="PDT2" />
+      </a>
+    <a href="album.html?album=splash&count=51">
+    <img src="images/splash/47.jpg" alt="CDMX" />
+      </a>
+      <a href="album.html?album=cdmx&count=15">
+    <img src="images/cdmx/9.jpg" alt="CDMX" />
+      </a>
+      <a href="album.html?album=oax&count=13">
+    <img src="images/oax/8.jpg" alt="OAX" />
+      </a>
   </main>
 
   <div id="lightbox" class="lightbox" onclick="closeImage()">
     <img id="lightbox-img" src="" alt="Full Image" />
   </div>
 
-  <script>
-    function openImage(src) {
-      const lightbox = document.getElementById('lightbox');
-      const img = document.getElementById('lightbox-img');
-      img.src = src;
-      lightbox.style.display = 'flex';
+<script>
+  (function() {
+    function layoutIndexGallery() {
+      const gallery = document.getElementById("gallery");
+      if (!gallery) return;
+      const isMobile = window.innerWidth < 768;
+      const imageGap = 10;
+      if (isMobile) {
+        // Reset mobile to natural flow
+        Array.from(gallery.querySelectorAll("img")).forEach(img => {
+          img.style.position = "";
+          img.style.left = "";
+          img.style.top = "";
+          img.style.width = "";
+          img.style.height = "";
+        });
+        gallery.style.position = "";
+        gallery.style.height = "";
+        return;
+      }
+      const containerPadding = parseFloat(getComputedStyle(gallery).paddingLeft) || 0;
+      const maxCols = Math.floor((window.innerWidth - 2 * containerPadding) / 325);
+      const colWidth = (window.innerWidth - 2 * containerPadding - (maxCols + 1) * imageGap) / maxCols;
+      const rowHeights = Array(maxCols).fill(0);
+      Array.from(gallery.querySelectorAll("img")).forEach((img, i) => {
+        const aspectRatio = img.naturalHeight / img.naturalWidth;
+        const width = colWidth;
+        const height = width * aspectRatio;
+        let bestCol = 0, minY = rowHeights[0];
+        for (let c = 1; c < maxCols; c++) {
+          if (rowHeights[c] < minY) {
+            minY = rowHeights[c];
+            bestCol = c;
+          }
+        }
+        const left = containerPadding + imageGap + bestCol * (colWidth + imageGap);
+        const top = minY + imageGap;
+        rowHeights[bestCol] = top + height;
+        img.style.position = "absolute";
+        img.style.width = `${width}px`;
+        img.style.height = `${height}px`;
+        img.style.left = `${left}px`;
+        img.style.top = `${top}px`;
+      });
+      gallery.style.position = "relative";
+      gallery.style.height = `${Math.ceil(Math.max(...rowHeights) + window.innerHeight * 0.15)}px`;
     }
-
-    function closeImage() {
-      document.getElementById('lightbox').style.display = 'none';
-    }
-  </script>
+    document.addEventListener("DOMContentLoaded", layoutIndexGallery);
+    window.addEventListener("resize", layoutIndexGallery);
+  })();
+</script>
 </body>
 </html>
