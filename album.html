@@ -30,52 +30,6 @@
     </div>
   </div>
 
-  <!-- read album & count from URL -->
-  <script>
-    const params = new URLSearchParams(window.location.search);
-    window.albumFolder  = params.get('album');
-    window.totalImages  = parseInt(params.get('count'), 10) || 0;
-
-    if (!window.albumFolder) console.error("No album specified!");
-
-    document.addEventListener("DOMContentLoaded", () => {
-      loadImages(true);
-      setupLightbox(window.albumFolder);
-      window.addEventListener("resize", () => loadImages(false));
-      window.addEventListener("scroll", () => {
-        if (window.innerWidth < 768) {
-          document.querySelectorAll(".scattered-gallery img").forEach((img, i) => {
-            const scrollY = window.scrollY;
-            const offset = scrollY * 0.02;
-
-            if (!img.dataset.randomTilt) {
-              img.dataset.randomTilt = (Math.random() * 2 - 1.2).toFixed(2);
-            }
-            if (!img.dataset.shouldPulse) {
-              img.dataset.shouldPulse = Math.random() < 0.5 ? "true" : "false";
-            }
-
-            const phaseOffset = parseFloat(img.dataset.randomTilt);
-            const tilt = Math.sin((scrollY + i * 30) * 0.005 + phaseOffset * 2) * 1.5;
-            const baseRotate = parseFloat(img.style.getPropertyValue('--base-rotate')) || 0;
-
-            img.style.transform = `rotate(${baseRotate + tilt}deg) translateY(${offset}px)`;
-            if (img.dataset.shouldPulse === "true") {
-              const scale = 1 + 0.1 * Math.abs(Math.sin(scrollY * 0.005 + i));
-              img.style.transform += ` scale(${scale})`;
-            }
-          });
-        }
-      });
-      const bodyWidth = document.body.clientWidth;
-      document.querySelectorAll("*").forEach(el => {
-        if (el.scrollWidth > bodyWidth) {
-          console.warn("Overflowing element:", el);
-        }
-      });
-    });
-  </script>
-
   <script defer src="js/gallery.js"></script>
   <script>
     document.title = "phanny";

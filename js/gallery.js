@@ -226,3 +226,95 @@ function loadImages(initial = false) {
     };
   });
 }
+
+// Album page initialization (formerly inline in album.html)
+(function() {
+  const params = new URLSearchParams(window.location.search);
+  window.albumFolder = params.get('album');
+  window.totalImages = parseInt(params.get('count'), 10) || 0;
+  if (!window.albumFolder) return; // skip if not an album page
+
+  document.addEventListener("DOMContentLoaded", () => {
+    loadImages(true);
+    setupLightbox(window.albumFolder);
+    window.addEventListener("resize", () => loadImages(false));
+    window.addEventListener("scroll", () => {
+      if (window.innerWidth < 768) {
+        document.querySelectorAll(".scattered-gallery img").forEach((img, i) => {
+          const scrollY = window.scrollY;
+          const offset = scrollY * 0.02;
+          if (!img.dataset.randomTilt) {
+            img.dataset.randomTilt = (Math.random() * 2 - 1.2).toFixed(2);
+          }
+          if (!img.dataset.shouldPulse) {
+            img.dataset.shouldPulse = Math.random() < 0.5 ? "true" : "false";
+          }
+          const phaseOffset = parseFloat(img.dataset.randomTilt);
+          const tilt = Math.sin((scrollY + i * 30) * 0.005 + phaseOffset * 2) * 1.5;
+          const baseRotate = parseFloat(img.style.getPropertyValue('--base-rotate')) || 0;
+          img.style.transform = `rotate(${baseRotate + tilt}deg) translateY(${offset}px)`;
+          if (img.dataset.shouldPulse === "true") {
+            const scale = 1 + 0.1 * Math.abs(Math.sin(scrollY * 0.005 + i));
+            img.style.transform += ` scale(${scale})`;
+          }
+        });
+      }
+    });
+    // overflow warning
+    const bodyWidth = document.body.clientWidth;
+    document.querySelectorAll("*").forEach(el => {
+      if (el.scrollWidth > bodyWidth) console.warn("Overflowing element:", el);
+    });
+  });
+})();
+
+// Index page layout (formerly inline in index.html)
+(function() {
+  function layoutIndexGallery() {
+    const gallery = document.getElementById("gallery");
+    if (!gallery) return;
+    const isMobile = window.innerWidth < 768;
+    const imageGap = 10;
+    if (isMobile) {
+      // reset to natural flow
+      Array.from(gallery.querySelectorAll("img")).forEach(img => {
+        img.style.position = "";
+        img.style.left = "";
+        img.style.top = "";
+        img.style.width = "";
+        img.style.height = "";
+      });
+      gallery.style.position = "";
+      gallery.style.height = "";
+      return;
+    }
+    const containerPadding = parseFloat(getComputedStyle(gallery).paddingLeft) || 0;
+    const maxCols = Math.floor((window.innerWidth - 2 * containerPadding) / 325);
+    const colWidth = (window.innerWidth - 2 * containerPadding - (maxCols + 1) * imageGap) / maxCols;
+    const rowHeights = Array(maxCols).fill(0);
+    Array.from(gallery.querySelectorAll("img")).forEach((img, i) => {
+      const aspectRatio = img.naturalHeight / img.naturalWidth;
+      const width = colWidth;
+      const height = width * aspectRatio;
+      let bestCol = 0, minY = rowHeights[0];
+      for (let c = 1; c < maxCols; c++) {
+        if (rowHeights[c] < minY) {
+          minY = rowHeights[c];
+          bestCol = c;
+        }
+      }
+      const left = containerPadding + imageGap + bestCol * (colWidth + imageGap);
+      const top = minY + imageGap;
+      rowHeights[bestCol] = top + height;
+      img.style.position = "absolute";
+      img.style.width = `${width}px`;
+      img.style.height = `${height}px`;
+      img.style.left = `${left}px`;
+      img.style.top = `${top}px`;
+    });
+    gallery.style.position = "relative";
+    gallery.style.height = `${Math.ceil(Math.max(...rowHeights) + window.innerHeight * 0.15)}px`;
+  }
+  document.addEventListener("DOMContentLoaded", layoutIndexGallery);
+  window.addEventListener("resize", layoutIndexGallery);
+})();

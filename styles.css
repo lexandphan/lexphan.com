@@ -274,10 +274,16 @@ body.index-page .scattered-gallery {
   body.index-page #gallery.scattered-gallery {
     position: relative !important;
     visibility: visible !important;
+    padding-left: 1.5vw !important;
+    padding-right: 1.5vw !important;
   }
   body.index-page #gallery.scattered-gallery img {
     position: absolute !important;
     opacity: 1 !important;
+    box-shadow: 0 24px 72px rgba(0, 0, 0, 0.35) !important;
+  }
+  body.index-page #gallery.scattered-gallery img:hover {
+    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.325) !important;
   }
 }
 
@@ -290,6 +296,8 @@ body.index-page .scattered-gallery {
     visibility: visible !important;
     position: static !important;
     height: auto !important;
+    padding-left: 1.8vw !important;
+    padding-right: 1.8vw !important;
   }
   body.index-page #gallery.scattered-gallery a {
     display: block !important;
@@ -304,5 +312,9 @@ body.index-page .scattered-gallery {
     height: auto !important;
     opacity: 1 !important;
     transform: none !important;
+    box-shadow: 0 24px 72px rgba(0, 0, 0, 0.35) !important;
+  }
+  body.index-page #gallery.scattered-gallery img:hover {
+    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.325) !important;
   }
 }
