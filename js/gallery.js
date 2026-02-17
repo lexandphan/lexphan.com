@@ -39,13 +39,18 @@ function openImage(src, folder) {
   if (index !== -1) {
     currentImageIndex = index;
   }
+  img.classList.remove('visible');
   img.src = src;
   lightbox.style.display = 'flex';
   document.body.classList.add('noscroll');
+  setTimeout(() => img.classList.add('visible'), 10);
 }
 
 function closeImage() {
-  document.getElementById('lightbox').style.display = 'none';
+  const lightbox = document.getElementById('lightbox');
+  const img = document.getElementById('lightbox-img');
+  img.classList.remove('visible');
+  lightbox.style.display = 'none';
   document.body.classList.remove('noscroll');
 }
 
@@ -85,10 +90,19 @@ function setupLightbox(folder) {
 
   lightboxImg.addEventListener('click', closeImage);
 
+
   document.addEventListener('keydown', (e) => {
     if (document.getElementById('lightbox').style.display === 'flex') {
-      if (e.key === 'Escape') {
-        closeImage();
+      switch (e.key) {
+        case 'Escape':
+          closeImage();
+          break;
+        case 'ArrowLeft':
+          showPrevImage(folder);
+          break;
+        case 'ArrowRight':
+          showNextImage(folder);
+          break;
       }
     }
   });
@@ -274,7 +288,7 @@ function loadImages(initial = false) {
     const gallery = document.getElementById("gallery");
     if (!gallery) return;
     const isMobile = window.innerWidth < 768;
-    const imageGap = 10;
+    const imageGap = 20;
     if (isMobile) {
       // reset to natural flow
       Array.from(gallery.querySelectorAll("img")).forEach(img => {
@@ -317,4 +331,21 @@ function loadImages(initial = false) {
   }
   document.addEventListener("DOMContentLoaded", layoutIndexGallery);
   window.addEventListener("resize", layoutIndexGallery);
+
+  if (document.body.classList.contains('index-page')) {
+    const links = document.querySelectorAll('#gallery a');
+    const flash = document.getElementById('flash-overlay');
+
+    links.forEach(link => {
+      link.addEventListener('click', (e) => {
+        e.preventDefault();
+        flash.classList.remove('flash');
+        void flash.offsetWidth; // force reflow
+        flash.classList.add('flash');
+        setTimeout(() => {
+          window.location.href = link.href;
+        }, 100);
+      });
+    });
+  }
 })();
