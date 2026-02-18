@@ -2,6 +2,73 @@
 let imageLayoutData = [];
 let currentImageIndex = 0;
 
+function getAlbumFromLocation() {
+  const params = new URLSearchParams(window.location.search);
+  const albumFromQuery = params.get('album');
+  if (albumFromQuery) return albumFromQuery;
+
+  const hashAlbum = window.location.hash.replace(/^#/, '').trim();
+  if (hashAlbum) return decodeURIComponent(hashAlbum);
+
+  const pathMatch = window.location.pathname.match(/album(?:\.html)?\/([^/]+)/i);
+  if (pathMatch && pathMatch[1]) return decodeURIComponent(pathMatch[1]);
+
+  return null;
+}
+
+function getSiteBasePath() {
+  const galleryScript = document.querySelector('script[src*="js/gallery.js"]');
+  if (!galleryScript) return "/";
+
+  const scriptUrl = new URL(galleryScript.src, window.location.href);
+  return scriptUrl.pathname.replace(/js\/gallery\.js$/, "");
+}
+
+function buildImagePath(folder, imageIndex) {
+  return `${getSiteBasePath()}images/${folder}/${imageIndex}.jpg`;
+}
+
+async function imageExists(path) {
+  try {
+    const headResponse = await fetch(path, { method: "HEAD", cache: "no-store" });
+    if (headResponse.ok) return true;
+  } catch (_err) {
+    // Fallback below covers static hosts that do not support HEAD requests.
+  }
+
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve(true);
+    img.onerror = () => resolve(false);
+    img.src = `${path}${path.includes("?") ? "&" : "?"}probe=${Date.now()}`;
+  });
+}
+
+async function detectTotalImages(folder, maxProbe = 1000) {
+  if (!(await imageExists(buildImagePath(folder, 1)))) return 0;
+
+  let low = 1;
+  let high = 2;
+  while (high <= maxProbe && (await imageExists(buildImagePath(folder, high)))) {
+    low = high;
+    high *= 2;
+  }
+
+  let left = low;
+  let right = Math.min(high - 1, maxProbe);
+
+  while (left < right) {
+    const mid = Math.ceil((left + right) / 2);
+    if (await imageExists(buildImagePath(folder, mid))) {
+      left = mid;
+    } else {
+      right = mid - 1;
+    }
+  }
+
+  return left;
+}
+
 function adjustGalleryHeight() {
   const gallery = document.getElementById("gallery");
   const images = gallery.querySelectorAll("img");
@@ -21,14 +88,14 @@ function adjustGalleryHeight() {
 function showNextImage(folder) {
   if (currentImageIndex < imageLayoutData.length - 1) {
     currentImageIndex++;
-    document.getElementById('lightbox-img').src = `images/${folder}/${imageLayoutData[currentImageIndex].imgIndex}.jpg`;
+    document.getElementById('lightbox-img').src = buildImagePath(folder, imageLayoutData[currentImageIndex].imgIndex);
   }
 }
 
 function showPrevImage(folder) {
   if (currentImageIndex > 0) {
     currentImageIndex--;
-    document.getElementById('lightbox-img').src = `images/${folder}/${imageLayoutData[currentImageIndex].imgIndex}.jpg`;
+    document.getElementById('lightbox-img').src = buildImagePath(folder, imageLayoutData[currentImageIndex].imgIndex);
   }
 }
 
@@ -160,7 +227,7 @@ function loadImages(initial = false) {
 
   imageIndexes.forEach((imgIndex, i) => {
     const img = new Image();
-    img.src = `images/${albumFolder}/${imgIndex}.jpg`;
+    img.src = buildImagePath(albumFolder, imgIndex);
 
     img.onload = () => {
       const aspectRatio = img.naturalHeight / img.naturalWidth;
@@ -244,11 +311,33 @@ function loadImages(initial = false) {
 // Album page initialization (formerly inline in album.html)
 (function() {
   const params = new URLSearchParams(window.location.search);
-  window.albumFolder = params.get('album');
+  window.albumFolder = getAlbumFromLocation();
   window.totalImages = parseInt(params.get('count'), 10) || 0;
   if (!window.albumFolder) return; // skip if not an album page
 
-  document.addEventListener("DOMContentLoaded", () => {
+  const encodedAlbum = encodeURIComponent(window.albumFolder);
+  const albumPathMarker = '/album/';
+  const basePath = window.location.pathname.includes(albumPathMarker)
+    ? window.location.pathname.split(albumPathMarker)[0]
+    : window.location.pathname.replace(/\/album\.html$/, '');
+  const canonicalPath = `${basePath}${albumPathMarker}${encodedAlbum}/`.replace(/\/{2,}/g, '/');
+  if (
+    window.location.pathname !== canonicalPath ||
+    window.location.search ||
+    window.location.hash
+  ) {
+    window.history.replaceState({}, "", canonicalPath);
+  }
+
+  document.addEventListener("DOMContentLoaded", async () => {
+    if (!window.totalImages) {
+      window.totalImages = await detectTotalImages(window.albumFolder);
+    }
+    if (!window.totalImages) {
+      console.warn(`No images found for album: ${window.albumFolder}`);
+      return;
+    }
+
     loadImages(true);
     setupLightbox(window.albumFolder);
     window.addEventListener("resize", () => loadImages(false));
@@ -284,6 +373,8 @@ function loadImages(initial = false) {
 
 // Index page layout (formerly inline in index.html)
 (function() {
+  let indexLoadHandlersBound = false;
+
   function layoutIndexGallery() {
     const gallery = document.getElementById("gallery");
     if (!gallery) return;
@@ -307,7 +398,9 @@ function loadImages(initial = false) {
     const colWidth = (window.innerWidth - 2 * containerPadding - (maxCols + 1) * imageGap) / maxCols;
     const rowHeights = Array(maxCols).fill(0);
     Array.from(gallery.querySelectorAll("img")).forEach((img, i) => {
-      const aspectRatio = img.naturalHeight / img.naturalWidth;
+      const naturalWidth = img.naturalWidth || 0;
+      const naturalHeight = img.naturalHeight || 0;
+      const aspectRatio = naturalWidth > 0 ? naturalHeight / naturalWidth : 1;
       const width = colWidth;
       const height = width * aspectRatio;
       let bestCol = 0, minY = rowHeights[0];
@@ -329,7 +422,25 @@ function loadImages(initial = false) {
     gallery.style.position = "relative";
     gallery.style.height = `${Math.ceil(Math.max(...rowHeights) + window.innerHeight * 0.15)}px`;
   }
-  document.addEventListener("DOMContentLoaded", layoutIndexGallery);
+
+  function initIndexImages() {
+    if (indexLoadHandlersBound) return;
+    const gallery = document.getElementById("gallery");
+    if (!gallery) return;
+    indexLoadHandlersBound = true;
+
+    Array.from(gallery.querySelectorAll("img")).forEach((img) => {
+      img.classList.add("loaded");
+      if (!img.complete) {
+        img.addEventListener("load", layoutIndexGallery, { once: true });
+      }
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    initIndexImages();
+    layoutIndexGallery();
+  });
   window.addEventListener("resize", layoutIndexGallery);
 
   if (document.body.classList.contains('index-page')) {

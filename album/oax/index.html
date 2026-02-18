@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Album</title>
+  <link rel="stylesheet" href="../../styles.css" />
+  <style>
+    @media (max-width: 768px) {
+      html, body { overflow-x: hidden; width: 100%; }
+    }
+    /* gallery fade-in & layout tweaks copied from your oax.html */
+    #gallery { visibility: hidden; }
+    .fade-in { opacity: 0; transform: translateY(20px); transition: opacity .6s ease-out, transform .6s ease-out; }
+    .fade-in.visible { opacity:1; transform: translateY(0) scale(1.02); box-shadow:0 8px 16px rgba(0,0,0,0.15); }
+    .scattered-gallery { max-width:100%; position:relative; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1><a href="../../index.html">phanny</a></h1>
+    <nav><a href="../../info.html">info</a></nav>
+  </header>
+
+  <main id="gallery" class="scattered-gallery"></main>
+
+  <div id="lightbox" class="lightbox">
+    <div id="lightbox-swipe-area">
+      <img id="lightbox-img" src="" alt="" />
+    </div>
+  </div>
+
+  <script defer src="../../js/gallery.js"></script>
+  <script>
+    document.title = "phanny";
+  </script>
+</body>
+</html>
