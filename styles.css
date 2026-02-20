@@ -162,7 +162,7 @@ body.album-page #gallery {
   height: auto;
   object-fit: contain;
   /* Only transition compositable properties; left/top/width/height cause layout thrash */
-  transition: opacity 0.3s ease, transform 0.2s ease, box-shadow 0.2s ease;
+  transition: opacity 0.3s ease, box-shadow 0.2s ease;
   /* Pre-applied will-change so the browser can promote the layer before hover starts */
   will-change: transform;
   backface-visibility: hidden;
@@ -176,7 +176,6 @@ body.album-page #gallery {
 }
 
 .scattered-gallery img:hover {
-  transform: scale(1.03) rotate(0deg);
   z-index: 10000;
 }
 
@@ -189,8 +188,6 @@ body.album-page #gallery {
 
   .scattered-gallery img:hover {
     position: absolute;
-    /* !important needed: JS sets inline transform (rotate) that must be overridden on hover */
-    transform: scale(1.125) rotate(0deg) !important;
     box-shadow: 0 24px 80px rgba(0, 0, 0, 0.65);
     z-index: 9999;
   }
@@ -288,8 +285,6 @@ body.index-page .scattered-gallery {
   }
 
   body.index-page #gallery.scattered-gallery img:hover {
-    /* !important needed: JS sets inline transform on index images; hover must override */
-    transform: scale(1.05) rotate(0deg) !important;
     box-shadow: 0 24px 80px rgba(0, 0, 0, 0.325);
   }
 }

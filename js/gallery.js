@@ -15,7 +15,7 @@ function loadAnime() {
 }
 
 // Desktop: photos drop and settle into their scattered positions on load
-function animatePhotoToss(gallery) {
+function animatePhotoToss(gallery, onComplete) {
   loadAnime().then(anime => {
     const imgs = Array.from(gallery.querySelectorAll('img'));
     anime({
@@ -26,9 +26,60 @@ function animatePhotoToss(gallery) {
         return [t - 18 - Math.random() * 18, t];
       },
       duration: () => 480 + Math.random() * 220,
-      delay: anime.stagger(50, { from: 'random' }),
+      delay: anime.stagger(40, { from: 'random' }),
       easing: 'spring(1, 85, 9, 0)',
+      complete: onComplete,
     });
+  });
+}
+
+// Desktop: mouse parallax — images drift at different depths via top/left (no transform conflict)
+function setupParallax(gallery) {
+  const imgs = Array.from(gallery.querySelectorAll('img'));
+  imgs.forEach(img => {
+    img._origTop  = parseFloat(img.style.top)  || 0;
+    img._origLeft = parseFloat(img.style.left) || 0;
+  });
+  let mx = 0, my = 0, smx = 0, smy = 0;
+  document.addEventListener('mousemove', (e) => {
+    mx = e.clientX / window.innerWidth  - 0.5;
+    my = e.clientY / window.innerHeight - 0.5;
+  });
+  const maxZ = Math.max(...imgs.map(img => parseInt(img.style.zIndex) || 1), 1);
+  (function tick() {
+    smx += (mx - smx) * 0.06;
+    smy += (my - smy) * 0.06;
+    imgs.forEach(img => {
+      const depth = 0.2 + ((parseInt(img.style.zIndex) || 1) / maxZ) * 0.8;
+      img.style.top  = `${img._origTop  + smy * depth * 15}px`;
+      img.style.left = `${img._origLeft + smx * depth * 15}px`;
+    });
+    requestAnimationFrame(tick);
+  })();
+}
+
+// Desktop: spring hover pickup — anime.js owns the transform on enter/leave
+function setupHoverPickup(gallery) {
+  loadAnime().then(anime => {
+    Array.from(gallery.querySelectorAll('img')).forEach(img => {
+      img.addEventListener('mouseenter', () => {
+        const rotate = parseFloat(img.style.getPropertyValue('--base-rotate')) || 0;
+        anime({ targets: img, scale: 1.12, rotate: rotate * 0.2, duration: 300, easing: 'spring(1, 100, 8, 0)' });
+      });
+      img.addEventListener('mouseleave', () => {
+        const rotate = parseFloat(img.style.getPropertyValue('--base-rotate')) || 0;
+        anime({ targets: img, scale: 1, rotate: rotate, duration: 380, easing: 'spring(1, 70, 9, 0)' });
+      });
+    });
+  });
+}
+
+// All pages: wordmark spring entrance on load
+function animateWordmark() {
+  loadAnime().then(anime => {
+    const el = document.querySelector('header h1 svg');
+    if (!el) return;
+    anime({ targets: el, opacity: [0, 1], scale: [0.88, 1], duration: 700, easing: 'spring(1, 75, 7, 0)' });
   });
 }
 
@@ -362,7 +413,10 @@ function loadImages(initial = false) {
         setTimeout(() => {
           loadImages(false);
           gallery.style.visibility = 'visible';
-          if (window.innerWidth >= 768) animatePhotoToss(gallery);
+          if (window.innerWidth >= 768) animatePhotoToss(gallery, () => {
+            setupParallax(gallery);
+            setupHoverPickup(gallery);
+          });
 
           const observer = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
@@ -526,7 +580,13 @@ function loadImages(initial = false) {
     if (window.innerWidth >= 768) {
       Promise.all(Array.from(gallery.querySelectorAll('img')).map(img =>
         img.complete ? Promise.resolve() : new Promise(r => img.addEventListener('load', r, { once: true }))
-      )).then(() => { layoutIndexGallery(); animatePhotoToss(gallery); });
+      )).then(() => {
+        layoutIndexGallery();
+        animatePhotoToss(gallery, () => {
+          setupParallax(gallery);
+          setupHoverPickup(gallery);
+        });
+      });
     } else {
       setupCarouselPulse(gallery);
     }
@@ -550,3 +610,6 @@ function loadImages(initial = false) {
     });
   }
 })();
+
+// Wordmark entrance on every page
+document.addEventListener("DOMContentLoaded", animateWordmark);
