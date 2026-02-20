@@ -460,12 +460,6 @@ function loadImages(initial = false) {
       if (!img.complete) {
         img.addEventListener("load", layoutIndexGallery, { once: true });
       }
-      if (img.alt && !img.parentElement.querySelector('.album-label')) {
-        const label = document.createElement("span");
-        label.className = "album-label";
-        label.textContent = img.alt.toLowerCase();
-        img.parentElement.appendChild(label);
-      }
     });
   }
 

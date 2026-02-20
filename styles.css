@@ -349,15 +349,4 @@ body.index-page .scattered-gallery {
     box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
   }
 
-  .album-label {
-    font-family: 'Caveat', cursive;
-    font-weight: 600;
-    font-size: 1rem;
-    color: #8A8178;
-    padding-left: 2px;
-  }
-}
-
-@media (min-width: 768px) {
-  .album-label { display: none; }
 }
