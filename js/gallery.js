@@ -2,6 +2,60 @@
 let imageLayoutData = [];
 let currentImageIndex = 0;
 
+// ── Anime.js helpers ─────────────────────────────────────────────────────────
+
+function loadAnime() {
+  return new Promise((resolve) => {
+    if (window.anime) { resolve(window.anime); return; }
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js';
+    s.onload = () => resolve(window.anime);
+    document.head.appendChild(s);
+  });
+}
+
+// Desktop: photos drop and settle into their scattered positions on load
+function animatePhotoToss(gallery) {
+  loadAnime().then(anime => {
+    const imgs = Array.from(gallery.querySelectorAll('img'));
+    anime({
+      targets: imgs,
+      opacity: [0, 1],
+      top: (el) => {
+        const t = parseFloat(el.style.top) || 0;
+        return [t - 18 - Math.random() * 18, t];
+      },
+      duration: () => 480 + Math.random() * 220,
+      delay: anime.stagger(50, { from: 'random' }),
+      easing: 'spring(1, 85, 9, 0)',
+    });
+  });
+}
+
+// Mobile: spring pulse on the card that snaps into focus
+function setupCarouselPulse(gallery) {
+  loadAnime().then(anime => {
+    let isAnimating = false;
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting && !isAnimating) {
+          const img = entry.target.querySelector('img');
+          if (!img) return;
+          isAnimating = true;
+          anime({
+            targets: img,
+            scale: [1, 1.025, 1],
+            duration: 550,
+            easing: 'spring(1, 80, 10, 0)',
+            complete: () => { isAnimating = false; },
+          });
+        }
+      });
+    }, { root: gallery, threshold: 0.8 });
+    gallery.querySelectorAll('a').forEach(card => observer.observe(card));
+  });
+}
+
 function getAlbumFromLocation() {
   const params = new URLSearchParams(window.location.search);
   const albumFromQuery = params.get('album');
@@ -308,6 +362,7 @@ function loadImages(initial = false) {
         setTimeout(() => {
           loadImages(false);
           gallery.style.visibility = 'visible';
+          if (window.innerWidth >= 768) animatePhotoToss(gallery);
 
           const observer = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
@@ -466,6 +521,15 @@ function loadImages(initial = false) {
   document.addEventListener("DOMContentLoaded", () => {
     initIndexImages();
     layoutIndexGallery();
+    const gallery = document.getElementById('gallery');
+    if (!gallery) return;
+    if (window.innerWidth >= 768) {
+      Promise.all(Array.from(gallery.querySelectorAll('img')).map(img =>
+        img.complete ? Promise.resolve() : new Promise(r => img.addEventListener('load', r, { once: true }))
+      )).then(() => { layoutIndexGallery(); animatePhotoToss(gallery); });
+    } else {
+      setupCarouselPulse(gallery);
+    }
   });
   window.addEventListener("resize", layoutIndexGallery);
 
