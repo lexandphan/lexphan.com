@@ -4,11 +4,11 @@
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: radial-gradient(circle at center, 
-    rgba(255, 255, 255, 1) 0%, 
-    rgba(255, 255, 255, 0.95) 30%, 
-    rgba(255, 255, 255, 0.8) 60%, 
-    rgba(255, 255, 255, 0.5) 80%, 
+  background: radial-gradient(circle at center,
+    rgba(255, 255, 255, 1) 0%,
+    rgba(255, 255, 255, 0.95) 30%,
+    rgba(255, 255, 255, 0.8) 60%,
+    rgba(255, 255, 255, 0.5) 80%,
     transparent 100%);
   pointer-events: none;
   z-index: 99999;
@@ -26,16 +26,6 @@
   animation: cameraFlash 0.18s ease-out;
 }
 
-.scattered-gallery img.loaded {
-  opacity: 1;
-}
-.scattered-gallery img:hover {
-  transform: scale(1.03) rotate(0deg);
-  z-index: 10000;
-  will-change: transform, z-index;
-  backface-visibility: hidden;
-}
-
 body {
   margin: 0;
   font-family: Helvetica, Arial, sans-serif;
@@ -51,17 +41,26 @@ header {
   border-bottom: 1px solid #ccc;
 }
 
+header h1 {
+  margin: 0;
+  line-height: 0;
+}
+
 header h1 a {
   text-decoration: none;
-  color: #111;
-  font-size: 1.5rem;
-  font-weight: bold;
+  display: inline-block;
 }
 
 nav a {
+  display: inline-flex;
+  align-items: center;
   text-decoration: none;
-  color: #555;
-  font-size: 1rem;
+  opacity: 0.5;
+  transition: opacity 0.15s;
+}
+
+nav a:hover {
+  opacity: 1;
 }
 
 .info-main {
@@ -98,34 +97,6 @@ nav a {
   border: 0;
 }
 
-.gallery {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 1rem;
-  padding: 2rem;
-}
-
-.gallery img {
-  width: 100%;
-  height: auto;
-  cursor: pointer;
-  display: block;
-  margin-bottom: 1rem;
-  border-radius: 0;
-  transition: 0.3s ease-in-out;
-  background: white;
-  padding: 5px;
-  box-sizing: content-box;
-}
-
-.gallery img:hover {
-  opacity: 0.8;
-}
-
-main.gallery {
-  max-width: 960px;
-  margin: auto;
-}
 /* Scattered Gallery */
 #gallery.scattered-gallery {
   position: relative;
@@ -134,34 +105,6 @@ main.gallery {
   padding: 20px;
   overflow: visible;
   touch-action: pan-y;
-}
-
-.gallery.masonry {
-  column-count: 2;
-  column-gap: 1rem;
-  padding: 1rem;
-}
-
-@media (min-width: 768px) {
-  .gallery.masonry {
-    column-count: 3;
-  }
-}
-
-.gallery.masonry img {
-  width: 100%;
-  margin-bottom: 1rem;
-  break-inside: avoid;
-  cursor: pointer;
-  border-radius: 0;
-  transition: opacity 0.3s;
-  background: white;
-  padding: 5px;
-  box-sizing: content-box;
-}
-
-.gallery.masonry img:hover {
-  opacity: 0.85;
 }
 
 .scattered-gallery {
@@ -176,6 +119,24 @@ main.gallery {
   min-height: 100vh;
 }
 
+/* Album gallery: hidden until JS lays out images */
+body.album-page #gallery {
+  visibility: hidden;
+}
+
+/* Fade-in animation for album images (consolidated from per-album inline styles) */
+.fade-in {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+}
+
+.fade-in.visible {
+  opacity: 1;
+  transform: translateY(0) scale(1.02);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+}
+
 .scattered-gallery img {
   position: absolute;
   --base-rotate: 0deg;
@@ -186,19 +147,23 @@ main.gallery {
   width: auto;
   height: auto;
   object-fit: contain;
-  transition:
-    opacity 0.3s ease,
-    transform 0.2s ease,
-    box-shadow 0.2s ease,
-    width 0.2s ease,
-    height 0.2s ease,
-    left 0.2s ease,
-    top 0.2s ease;
-  will-change: transform, z-index;
+  /* Only transition compositable properties; left/top/width/height cause layout thrash */
+  transition: opacity 0.3s ease, transform 0.2s ease, box-shadow 0.2s ease;
+  /* Pre-applied will-change so the browser can promote the layer before hover starts */
+  will-change: transform;
   backface-visibility: hidden;
   background: white;
   padding: 5px;
   box-sizing: content-box;
+}
+
+.scattered-gallery img.loaded {
+  opacity: 1;
+}
+
+.scattered-gallery img:hover {
+  transform: scale(1.03) rotate(0deg);
+  z-index: 10000;
 }
 
 @media (min-width: 768px) {
@@ -207,10 +172,12 @@ main.gallery {
     max-width: 200%;
     max-height: 200%;
   }
+
   .scattered-gallery img:hover {
     position: absolute;
+    /* !important needed: JS sets inline transform (rotate) that must be overridden on hover */
     transform: scale(1.125) rotate(0deg) !important;
-    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.65) !important;
+    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.65);
     z-index: 9999;
   }
 }
@@ -237,30 +204,6 @@ main.gallery {
   transition: opacity 0.3s ease;
 }
 
-@media (max-width: 768px) {
-  html, body {
-    overflow-x: hidden;
-    width: 100%;
-  }
-  .scattered-gallery {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: space-evenly;
-    align-items: flex-start;
-    position: relative;
-    padding-left: 1.8vw;
-    padding-right: 1.8vw;
-  }
-  .scattered-gallery img {
-    max-width: 90vw;
-    border-radius: 0;
-  }
-}
-
-body.index-page .scattered-gallery {
-  justify-content: space-evenly;
-}
-
 #lightbox-img {
   pointer-events: auto;
   cursor: zoom-out;
@@ -274,46 +217,84 @@ body.index-page .scattered-gallery {
   width: 100%;
 }
 
+/* Mobile styles (consolidated) */
+@media (max-width: 768px) {
+  html, body {
+    overflow-x: hidden;
+    width: 100%;
+  }
+
+  .scattered-gallery {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-evenly;
+    align-items: flex-start;
+    position: relative;
+    padding-left: 1.8vw;
+    padding-right: 1.8vw;
+  }
+
+  .scattered-gallery img {
+    max-width: 90vw;
+    border-radius: 0;
+    transform: translateY(2px);
+  }
+
+  .scattered-gallery img.scroll-scale-pulse {
+    animation: mobileScrollPulse 4s ease-in-out infinite;
+  }
+
+  .scattered-gallery img:nth-child(3n) { animation-delay: 0s; }
+  .scattered-gallery img:nth-child(4n) { animation-delay: 2s; }
+  .scattered-gallery img:nth-child(5n) { animation-delay: 3s; }
+}
+
+body.index-page .scattered-gallery {
+  justify-content: space-evenly;
+}
+
 @keyframes mobileScrollPulse {
   0% { transform: scale(1); }
   50% { transform: scale(1.25); }
   100% { transform: scale(1); }
 }
 
-@media (max-width: 768px) {
-  .scattered-gallery img.scroll-scale-pulse {
-    animation: mobileScrollPulse 4s ease-in-out infinite;
+/* Index page desktop overrides */
+@media (min-width: 768px) {
+  body.index-page #gallery.scattered-gallery {
+    position: relative;
+    visibility: visible;
+    padding-left: 1.5vw;
+    padding-right: 1.5vw;
   }
 
-  .scattered-gallery img:nth-child(3n) {
-    animation-delay: 0s;
+  body.index-page #gallery.scattered-gallery img {
+    position: absolute;
+    box-shadow: 0 24px 72px rgba(0, 0, 0, 0.35);
   }
 
-  .scattered-gallery img:nth-child(4n) {
-    animation-delay: 2s;
-  }
-
-  .scattered-gallery img:nth-child(5n) {
-    animation-delay: 3s;
-  }
-
-  .scattered-gallery img {
-    transform: translateY(2px);
+  body.index-page #gallery.scattered-gallery img:hover {
+    /* !important needed: JS sets inline transform on index images; hover must override */
+    transform: scale(1.05) rotate(0deg) !important;
+    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.325);
   }
 }
 
-@media (max-width: 768px) {
-  main.gallery.masonry {
+/* Index page mobile overrides — JS clears inline styles on mobile so !important not needed */
+@media (max-width: 767px) {
+  body.index-page #gallery.scattered-gallery {
     display: flex;
     flex-direction: column;
     align-items: center;
-    margin: 0 auto !important;
-    padding: 0 !important;
-    width: 100% !important;
-    box-sizing: border-box;
+    justify-content: center;
+    visibility: visible;
+    position: static;
+    height: auto;
+    padding-left: 1.8vw;
+    padding-right: 1.8vw;
   }
 
-  main.gallery.masonry a {
+  body.index-page #gallery.scattered-gallery a {
     display: block;
     width: 100%;
     max-width: 90vw;
@@ -321,64 +302,17 @@ body.index-page .scattered-gallery {
     box-sizing: border-box;
   }
 
-  main.gallery.masonry img {
-    display: block;
+  body.index-page #gallery.scattered-gallery img {
+    position: static;
     width: 100%;
     height: auto;
-    margin: 0 auto;
-    box-sizing: border-box;
+    opacity: 1;
+    transform: none;
+    box-shadow: 0 24px 72px rgba(0, 0, 0, 0.35);
   }
-}
 
-
-/* Index page overrides */
-@media (min-width: 768px) {
-  body.index-page #gallery.scattered-gallery {
-    position: relative !important;
-    visibility: visible !important;
-    padding-left: 1.5vw !important;
-    padding-right: 1.5vw !important;
-  }
-  body.index-page #gallery.scattered-gallery img {
-    position: absolute !important;
-    opacity: 1 !important;
-    box-shadow: 0 24px 72px rgba(0, 0, 0, 0.35) !important;
-  }
   body.index-page #gallery.scattered-gallery img:hover {
-    transform: scale(1.05) rotate(0deg) !important;
-    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.325) !important;
-  }
-}
-
-@media (max-width: 767px) {
-  body.index-page #gallery.scattered-gallery {
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
-    justify-content: center !important;
-    visibility: visible !important;
-    position: static !important;
-    height: auto !important;
-    padding-left: 1.8vw !important;
-    padding-right: 1.8vw !important;
-  }
-  body.index-page #gallery.scattered-gallery a {
-    display: block !important;
-    width: 100% !important;
-    max-width: 90vw !important;
-    margin: 0 auto 1rem !important;
-    box-sizing: border-box !important;
-  }
-  body.index-page #gallery.scattered-gallery img {
-    position: static !important;
-    width: 100% !important;
-    height: auto !important;
-    opacity: 1 !important;
-    transform: none !important;
-    box-shadow: 0 24px 72px rgba(0, 0, 0, 0.35) !important;
-  }
-  body.index-page #gallery.scattered-gallery img:hover {
-    transform: scale(1.05) rotate(0deg) !important;
-    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.325) !important;
+    transform: scale(1.05) rotate(0deg);
+    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.325);
   }
 }

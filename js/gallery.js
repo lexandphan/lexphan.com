@@ -102,14 +102,17 @@ function showPrevImage(folder) {
 function openImage(src, folder) {
   const lightbox = document.getElementById('lightbox');
   const img = document.getElementById('lightbox-img');
-  const index = imageLayoutData.findIndex(d => src.includes(`${d.imgIndex}.jpg`));
+  // Use endsWith to avoid index 1 matching "10.jpg", "11.jpg", etc.
+  const index = imageLayoutData.findIndex(d => src.endsWith(`/${d.imgIndex}.jpg`));
   if (index !== -1) {
     currentImageIndex = index;
   }
   img.classList.remove('visible');
   img.src = src;
   lightbox.style.display = 'flex';
+  lightbox.setAttribute('aria-hidden', 'false');
   document.body.classList.add('noscroll');
+  img.focus();
   setTimeout(() => img.classList.add('visible'), 10);
 }
 
@@ -118,6 +121,7 @@ function closeImage() {
   const img = document.getElementById('lightbox-img');
   img.classList.remove('visible');
   lightbox.style.display = 'none';
+  lightbox.setAttribute('aria-hidden', 'true');
   document.body.classList.remove('noscroll');
 }
 
@@ -127,27 +131,30 @@ function setupLightbox(folder) {
   let startX = 0;
   let isSwiping = false;
 
-  swipeArea.addEventListener('touchstart', (e) => {
-    startX = e.touches[0].clientX;
-    isSwiping = true;
-  });
+  // Null guard: swipe area only exists on album pages
+  if (swipeArea) {
+    swipeArea.addEventListener('touchstart', (e) => {
+      startX = e.touches[0].clientX;
+      isSwiping = true;
+    });
 
-  swipeArea.addEventListener('touchmove', (e) => {
-    if (!isSwiping) return;
-    const diffX = e.touches[0].clientX - startX;
-    if (Math.abs(diffX) > 50) {
-      isSwiping = false;
-      if (diffX > 0) {
-        showPrevImage(folder);
-      } else {
-        showNextImage(folder);
+    swipeArea.addEventListener('touchmove', (e) => {
+      if (!isSwiping) return;
+      const diffX = e.touches[0].clientX - startX;
+      if (Math.abs(diffX) > 50) {
+        isSwiping = false;
+        if (diffX > 0) {
+          showPrevImage(folder);
+        } else {
+          showNextImage(folder);
+        }
       }
-    }
-  });
+    });
 
-  swipeArea.addEventListener('touchend', () => {
-    isSwiping = false;
-  });
+    swipeArea.addEventListener('touchend', () => {
+      isSwiping = false;
+    });
+  }
 
   document.getElementById('lightbox').addEventListener('click', (e) => {
     if (e.target.id === 'lightbox') {
@@ -155,8 +162,9 @@ function setupLightbox(folder) {
     }
   });
 
-  lightboxImg.addEventListener('click', closeImage);
-
+  if (lightboxImg) {
+    lightboxImg.addEventListener('click', closeImage);
+  }
 
   document.addEventListener('keydown', (e) => {
     if (document.getElementById('lightbox').style.display === 'flex') {
@@ -174,6 +182,7 @@ function setupLightbox(folder) {
     }
   });
 }
+
 // Loads and lays out images in the gallery, using global albumFolder and totalImages
 function loadImages(initial = false) {
   const gallery = document.getElementById("gallery");
@@ -222,10 +231,12 @@ function loadImages(initial = false) {
   const rowHeights = Array(maxCols).fill(0);
   const imageIndexes = Array.from({ length: totalImages }, (_, i) => i + 1).sort(() => Math.random() - 0.5);
   let imagesLoaded = 0;
+  // Counter for z-index based on DOM insertion order (consistent across reloads)
+  let domZIndex = 0;
 
   imageLayoutData = [];
 
-  imageIndexes.forEach((imgIndex, i) => {
+  imageIndexes.forEach((imgIndex) => {
     const img = new Image();
     img.src = buildImagePath(albumFolder, imgIndex);
 
@@ -258,29 +269,38 @@ function loadImages(initial = false) {
       };
       imageLayoutData.push(placedImage);
 
+      const myZIndex = domZIndex++;
       const domImg = document.createElement("img");
+      // Set loading before src so the hint takes effect for offscreen images
+      domImg.loading = "lazy";
       domImg.src = img.src;
-      domImg.alt = `${albumFolder} ${imgIndex}`;
+      domImg.alt = `${albumFolder} photo ${imgIndex}`;
+      domImg.tabIndex = 0;
       domImg.style.left = `${left}px`;
       domImg.style.top = `${top}px`;
       domImg.style.width = `${width}px`;
       domImg.style.height = `${height}px`;
       domImg.style.setProperty('--base-rotate', `${rotate}deg`);
       domImg.style.transform = `rotate(calc(var(--base-rotate)))`;
-      domImg.style.zIndex = i;
+      domImg.style.zIndex = myZIndex;
       domImg.addEventListener("mouseenter", () => {
         domImg.style.zIndex = 9999;
       });
       domImg.addEventListener("mouseleave", () => {
-        domImg.style.zIndex = i;
+        domImg.style.zIndex = myZIndex;
       });
       domImg.style.transition = "transform 0.3s ease, box-shadow 0.3s ease";
-      domImg.loading = "lazy";
       domImg.onload = () => {
         domImg.classList.add("loaded");
         domImg.classList.add("fade-in");
       };
       domImg.addEventListener("click", () => openImage(domImg.src, albumFolder));
+      domImg.addEventListener("keydown", (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          openImage(domImg.src, albumFolder);
+        }
+      });
       gallery.appendChild(domImg);
 
       imagesLoaded++;
@@ -308,12 +328,16 @@ function loadImages(initial = false) {
   });
 }
 
-// Album page initialization (formerly inline in album.html)
+// Album page initialization
 (function() {
   const params = new URLSearchParams(window.location.search);
   window.albumFolder = getAlbumFromLocation();
-  window.totalImages = parseInt(params.get('count'), 10) || 0;
   if (!window.albumFolder) return; // skip if not an album page
+
+  // Read image count from data-count attribute first; fall back to query param
+  const galleryEl = document.getElementById('gallery');
+  const dataCount = galleryEl ? parseInt(galleryEl.dataset.count, 10) : 0;
+  window.totalImages = dataCount || parseInt(params.get('count'), 10) || 0;
 
   const encodedAlbum = encodeURIComponent(window.albumFolder);
   const albumPathMarker = '/album/';
@@ -331,6 +355,7 @@ function loadImages(initial = false) {
 
   document.addEventListener("DOMContentLoaded", async () => {
     if (!window.totalImages) {
+      // Binary search fallback: only fires when data-count is not set on the gallery element
       window.totalImages = await detectTotalImages(window.albumFolder);
     }
     if (!window.totalImages) {
@@ -341,37 +366,38 @@ function loadImages(initial = false) {
     loadImages(true);
     setupLightbox(window.albumFolder);
     window.addEventListener("resize", () => loadImages(false));
+
+    let scrollRafId = null;
     window.addEventListener("scroll", () => {
-      if (window.innerWidth < 768) {
-        document.querySelectorAll(".scattered-gallery img").forEach((img, i) => {
-          const scrollY = window.scrollY;
-          const offset = scrollY * 0.02;
-          if (!img.dataset.randomTilt) {
-            img.dataset.randomTilt = (Math.random() * 2 - 1.2).toFixed(2);
-          }
-          if (!img.dataset.shouldPulse) {
-            img.dataset.shouldPulse = Math.random() < 0.5 ? "true" : "false";
-          }
-          const phaseOffset = parseFloat(img.dataset.randomTilt);
-          const tilt = Math.sin((scrollY + i * 30) * 0.005 + phaseOffset * 2) * 1.5;
-          const baseRotate = parseFloat(img.style.getPropertyValue('--base-rotate')) || 0;
-          img.style.transform = `rotate(${baseRotate + tilt}deg) translateY(${offset}px)`;
-          if (img.dataset.shouldPulse === "true") {
-            const scale = 1 + 0.1 * Math.abs(Math.sin(scrollY * 0.005 + i));
-            img.style.transform += ` scale(${scale})`;
-          }
-        });
-      }
-    });
-    // overflow warning
-    const bodyWidth = document.body.clientWidth;
-    document.querySelectorAll("*").forEach(el => {
-      if (el.scrollWidth > bodyWidth) console.warn("Overflowing element:", el);
+      if (scrollRafId) return;
+      scrollRafId = requestAnimationFrame(() => {
+        scrollRafId = null;
+        if (window.innerWidth < 768) {
+          document.querySelectorAll(".scattered-gallery img").forEach((img, i) => {
+            const scrollY = window.scrollY;
+            const offset = scrollY * 0.02;
+            if (!img.dataset.randomTilt) {
+              img.dataset.randomTilt = (Math.random() * 2 - 1.2).toFixed(2);
+            }
+            if (!img.dataset.shouldPulse) {
+              img.dataset.shouldPulse = Math.random() < 0.5 ? "true" : "false";
+            }
+            const phaseOffset = parseFloat(img.dataset.randomTilt);
+            const tilt = Math.sin((scrollY + i * 30) * 0.005 + phaseOffset * 2) * 1.5;
+            const baseRotate = parseFloat(img.style.getPropertyValue('--base-rotate')) || 0;
+            img.style.transform = `rotate(${baseRotate + tilt}deg) translateY(${offset}px)`;
+            if (img.dataset.shouldPulse === "true") {
+              const scale = 1 + 0.1 * Math.abs(Math.sin(scrollY * 0.005 + i));
+              img.style.transform += ` scale(${scale})`;
+            }
+          });
+        }
+      });
     });
   });
 })();
 
-// Index page layout (formerly inline in index.html)
+// Index page layout
 (function() {
   let indexLoadHandlersBound = false;
 
@@ -397,7 +423,7 @@ function loadImages(initial = false) {
     const maxCols = Math.floor((window.innerWidth - 2 * containerPadding) / 325);
     const colWidth = (window.innerWidth - 2 * containerPadding - (maxCols + 1) * imageGap) / maxCols;
     const rowHeights = Array(maxCols).fill(0);
-    Array.from(gallery.querySelectorAll("img")).forEach((img, i) => {
+    Array.from(gallery.querySelectorAll("img")).forEach((img) => {
       const naturalWidth = img.naturalWidth || 0;
       const naturalHeight = img.naturalHeight || 0;
       const aspectRatio = naturalWidth > 0 ? naturalHeight / naturalWidth : 1;

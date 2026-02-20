@@ -3,36 +3,42 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Album</title>
+  <title>Tokyo — phanny</title>
+  <meta name="description" content="Film photos from Tokyo by phanny." />
+  <meta property="og:title" content="Tokyo — phanny" />
+  <meta property="og:description" content="Film photos from Tokyo by phanny." />
+  <meta property="og:image" content="https://lexphan.com/images/tokyo/13.jpg" />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://lexphan.com/album/tokyo/" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="/assets/phanny-favicon.svg">
   <link rel="stylesheet" href="../../styles.css" />
-  <style>
-    @media (max-width: 768px) {
-      html, body { overflow-x: hidden; width: 100%; }
-    }
-    /* gallery fade-in & layout tweaks copied from your oax.html */
-    #gallery { visibility: hidden; }
-    .fade-in { opacity: 0; transform: translateY(20px); transition: opacity .6s ease-out, transform .6s ease-out; }
-    .fade-in.visible { opacity:1; transform: translateY(0) scale(1.02); box-shadow:0 8px 16px rgba(0,0,0,0.15); }
-    .scattered-gallery { max-width:100%; position:relative; }
-  </style>
 </head>
-<body>
+<body class="album-page">
   <header>
-    <h1><a href="../../index.html">phanny</a></h1>
-    <nav><a href="../../info.html">info</a></nav>
+    <h1>
+      <a href="/">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 80" width="140" height="40" aria-label="phanny">
+          <text x="0" y="66" font-family="Caveat, cursive" font-weight="600" font-size="72" letter-spacing="-0.01em" fill="#1B1814">phanny</text>
+        </svg>
+      </a>
+    </h1>
+    <nav>
+      <a href="/info.html" title="info">
+        <img src="/assets/phanny-mark.svg" alt="info" width="28" height="28">
+      </a>
+    </nav>
   </header>
 
-  <main id="gallery" class="scattered-gallery"></main>
+  <main id="gallery" class="scattered-gallery" data-count="30"></main>
 
-  <div id="lightbox" class="lightbox">
+  <div id="lightbox" class="lightbox" role="dialog" aria-modal="true" aria-label="Image viewer" aria-hidden="true">
     <div id="lightbox-swipe-area">
       <img id="lightbox-img" src="" alt="" />
     </div>
   </div>
 
   <script defer src="../../js/gallery.js"></script>
-  <script>
-    document.title = "phanny";
-  </script>
 </body>
 </html>
