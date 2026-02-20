@@ -294,25 +294,44 @@ body.index-page .scattered-gallery {
   }
 }
 
-/* Index page mobile overrides — JS clears inline styles on mobile so !important not needed */
+/* Index page mobile — horizontal swipe carousel */
 @media (max-width: 767px) {
   body.index-page #gallery.scattered-gallery {
     display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    visibility: visible;
-    position: static;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    overflow-x: scroll;
+    overflow-y: hidden;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    touch-action: pan-x;
+    min-height: 0;
     height: auto;
-    padding-left: 1.8vw;
-    padding-right: 1.8vw;
+    padding: 2rem 11vw;
+    gap: 14px;
+    align-items: center;
+    justify-content: flex-start;
+    position: static;
+    visibility: visible;
+    box-sizing: border-box;
+    width: 100%;
+  }
+
+  body.index-page #gallery.scattered-gallery::-webkit-scrollbar {
+    display: none;
   }
 
   body.index-page #gallery.scattered-gallery a {
-    display: block;
-    width: 100%;
-    max-width: 90vw;
-    margin: 0 auto 1rem;
+    flex: 0 0 78vw;
+    scroll-snap-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    width: auto;
+    max-width: none;
+    margin: 0;
     box-sizing: border-box;
   }
 
@@ -322,11 +341,23 @@ body.index-page .scattered-gallery {
     height: auto;
     opacity: 1;
     transform: none;
-    box-shadow: 0 24px 72px rgba(0, 0, 0, 0.35);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
   }
 
   body.index-page #gallery.scattered-gallery img:hover {
-    transform: scale(1.05) rotate(0deg);
-    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.325);
+    transform: none;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
   }
+
+  .album-label {
+    font-family: 'Caveat', cursive;
+    font-weight: 600;
+    font-size: 1rem;
+    color: #8A8178;
+    padding-left: 2px;
+  }
+}
+
+@media (min-width: 768px) {
+  .album-label { display: none; }
 }
