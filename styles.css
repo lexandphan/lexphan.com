@@ -87,13 +87,14 @@ nav a:hover {
   margin: 0 0 0.4rem;
   font-size: 1rem;
   letter-spacing: 0.05em;
-  text-transform: uppercase;
   color: #8A8178;
 }
 
 .info-block p {
   margin: 0.35rem 0;
-  font-size: 1.2rem;
+  font-size: 1rem;
+  font-family: Helvetica, Arial, sans-serif;
+  font-weight: 400;
 }
 
 .info-main a {
