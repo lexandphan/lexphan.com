@@ -79,14 +79,22 @@ function setupInfiniteCarousel(gallery) {
     });
   }
 
-  // Center the first real card on init (index n in the 3n total)
+  // Center the first real card on init (index n in the 3n total).
+  // Double-rAF: first frame lets flex layout settle after clones are inserted;
+  // snap is disabled during the jump so the browser doesn't re-snap to a wrong card.
   requestAnimationFrame(() => {
-    const cards = getCards();
-    const firstReal = cards[n];
-    if (firstReal) {
-      gallery.scrollLeft = firstReal.offsetLeft - (gallery.offsetWidth - firstReal.offsetWidth) / 2;
-    }
-    updateDepth();
+    requestAnimationFrame(() => {
+      const cards = getCards();
+      const firstReal = cards[n];
+      if (firstReal) {
+        gallery.style.scrollSnapType = 'none';
+        gallery.scrollLeft = firstReal.offsetLeft - (gallery.offsetWidth - firstReal.offsetWidth) / 2;
+        requestAnimationFrame(() => {
+          gallery.style.scrollSnapType = '';
+          updateDepth();
+        });
+      }
+    });
   });
 
   // After scroll settles, jump back to real cards if in clone zone
@@ -612,22 +620,6 @@ function loadImages(initial = false) {
   });
   window.addEventListener("resize", layoutIndexGallery);
 
-  if (document.body.classList.contains('index-page')) {
-    const galleryEl = document.getElementById('gallery');
-    const flash = document.getElementById('flash-overlay');
-
-    if (galleryEl && flash) {
-      galleryEl.addEventListener('click', (e) => {
-        const link = e.target.closest('a[href]');
-        if (!link) return;
-        e.preventDefault();
-        flash.classList.remove('flash');
-        void flash.offsetWidth; // force reflow
-        flash.classList.add('flash');
-        setTimeout(() => { window.location.href = link.href; }, 100);
-      });
-    }
-  }
 })();
 
 // Wordmark entrance on every page
