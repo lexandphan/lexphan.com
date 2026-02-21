@@ -9,6 +9,8 @@ function loadAnime() {
     if (window.anime) { resolve(window.anime); return; }
     const s = document.createElement('script');
     s.src = 'https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js';
+    s.integrity = 'sha384-fXdIufVbE9aU7STmdk/DWK0imNOozId9fTwzM/gi0NfPjphEIC3gq0M760UnsKVy';
+    s.crossOrigin = 'anonymous';
     s.onload = () => resolve(window.anime);
     document.head.appendChild(s);
   });

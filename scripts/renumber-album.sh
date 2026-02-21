@@ -8,6 +8,11 @@ if [[ $# -ne 1 ]]; then
 fi
 
 album_slug="$1"
+
+if [[ ! "$album_slug" =~ ^[a-z0-9_-]+$ ]]; then
+  echo "Invalid album slug: must contain only lowercase letters, numbers, hyphens, and underscores"
+  exit 1
+fi
 album_dir="images/$album_slug"
 
 if [[ ! -d "$album_dir" ]]; then
