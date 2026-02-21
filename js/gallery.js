@@ -48,25 +48,15 @@ function setupInfiniteCarousel(gallery) {
   const n = origCards.length;
   if (n === 0) return;
 
-  // Assign a random tilt to each original card
-  origCards.forEach(card => {
-    const tilt = (Math.random() * 6 - 3).toFixed(2);
-    card.dataset.tilt = tilt;
-    const img = card.querySelector('img');
-    if (img) img.style.transform = `rotate(${tilt}deg)`;
-  });
-
   // Prepend clones (reversed insertion = original order prepended)
   // so immediately left of first real card is the last album
   [...origCards].reverse().forEach(c => {
     const clone = c.cloneNode(true);
-    clone.dataset.tilt = c.dataset.tilt;
     gallery.insertBefore(clone, gallery.firstChild);
   });
   // Append clones so scrolling right past last wraps to first
   origCards.forEach(c => {
     const clone = c.cloneNode(true);
-    clone.dataset.tilt = c.dataset.tilt;
     gallery.appendChild(clone);
   });
 
@@ -79,10 +69,13 @@ function setupInfiniteCarousel(gallery) {
       const cardCenter = card.offsetLeft + card.offsetWidth / 2;
       const dist = Math.abs(galleryCenter - cardCenter);
       const norm = Math.min(dist / (gallery.offsetWidth * 0.6), 1);
-      const scale = 1 - norm * 0.15;
-      const tilt = parseFloat(card.dataset.tilt) || 0;
+      const scale = 1 - norm * 0.18;
+      const brightness = 1 - norm * 0.35;
       const img = card.querySelector('img');
-      if (img) img.style.transform = `rotate(${tilt}deg) scale(${scale})`;
+      if (img) {
+        img.style.transform = `scale(${scale.toFixed(3)})`;
+        img.style.filter = `brightness(${brightness.toFixed(2)})`;
+      }
     });
   }
 
@@ -98,8 +91,12 @@ function setupInfiniteCarousel(gallery) {
 
   // After scroll settles, jump back to real cards if in clone zone
   let scrollTimer;
+  let rafId = null;
   gallery.addEventListener('scroll', () => {
-    updateDepth();
+    // Throttle depth updates to one per animation frame to prevent jitter
+    if (!rafId) {
+      rafId = requestAnimationFrame(() => { updateDepth(); rafId = null; });
+    }
     clearTimeout(scrollTimer);
     scrollTimer = setTimeout(() => {
       const cards = getCards();
