@@ -321,7 +321,7 @@ body.index-page .scattered-gallery {
     min-height: 0;
     height: auto;
     padding: 2rem 11vw;
-    gap: 14px;
+    gap: 6px;
     align-items: center;
     justify-content: flex-start;
     position: static;
