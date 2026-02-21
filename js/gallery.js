@@ -88,7 +88,9 @@ function setupInfiniteCarousel(gallery) {
       const firstReal = cards[n];
       if (firstReal) {
         gallery.style.scrollSnapType = 'none';
-        gallery.scrollLeft = firstReal.offsetLeft - (gallery.offsetWidth - firstReal.offsetWidth) / 2;
+        const gRect = gallery.getBoundingClientRect();
+        const cRect = firstReal.getBoundingClientRect();
+        gallery.scrollLeft += (cRect.left + cRect.width / 2) - (gRect.left + gRect.width / 2);
         requestAnimationFrame(() => {
           gallery.style.scrollSnapType = '';
           updateDepth();
