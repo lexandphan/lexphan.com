@@ -267,23 +267,10 @@ body.album-page #gallery {
     transform: translateY(2px);
   }
 
-  .scattered-gallery img.scroll-scale-pulse {
-    animation: mobileScrollPulse 4s ease-in-out infinite;
-  }
-
-  .scattered-gallery img:nth-child(3n) { animation-delay: 0s; }
-  .scattered-gallery img:nth-child(4n) { animation-delay: 2s; }
-  .scattered-gallery img:nth-child(5n) { animation-delay: 3s; }
 }
 
 body.index-page .scattered-gallery {
   justify-content: space-evenly;
-}
-
-@keyframes mobileScrollPulse {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.25); }
-  100% { transform: scale(1); }
 }
 
 /* Index page desktop overrides */

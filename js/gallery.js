@@ -131,7 +131,7 @@ function setupInfiniteCarousel(gallery) {
         });
       }
     }, 200);
-  });
+  }, { passive: true });
 }
 
 function getAlbumFromLocation() {
@@ -148,6 +148,11 @@ function getAlbumFromLocation() {
   return null;
 }
 
+const WEBP_SUPPORTED = (() => {
+  const c = document.createElement('canvas');
+  return c.toDataURL('image/webp').startsWith('data:image/webp');
+})();
+
 function getSiteBasePath() {
   const galleryScript = document.querySelector('script[src*="js/gallery.js"]');
   if (!galleryScript) return "/";
@@ -157,7 +162,8 @@ function getSiteBasePath() {
 }
 
 function buildImagePath(folder, imageIndex) {
-  return `${getSiteBasePath()}images/${folder}/${imageIndex}.jpg`;
+  const ext = WEBP_SUPPORTED ? 'webp' : 'jpg';
+  return `${getSiteBasePath()}images/${folder}/${imageIndex}.${ext}`;
 }
 
 async function imageExists(path) {
@@ -536,7 +542,7 @@ function loadImages(initial = false) {
           });
         }
       });
-    });
+    }, { passive: true });
   });
 })();
 
