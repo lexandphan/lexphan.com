@@ -33,47 +33,6 @@ function animatePhotoToss(gallery, onComplete) {
   });
 }
 
-// Desktop: mouse parallax — images drift at different depths via top/left (no transform conflict)
-function setupParallax(gallery) {
-  const imgs = Array.from(gallery.querySelectorAll('img'));
-  imgs.forEach(img => {
-    img._origTop  = parseFloat(img.style.top)  || 0;
-    img._origLeft = parseFloat(img.style.left) || 0;
-  });
-  let mx = 0, my = 0, smx = 0, smy = 0;
-  document.addEventListener('mousemove', (e) => {
-    mx = e.clientX / window.innerWidth  - 0.5;
-    my = e.clientY / window.innerHeight - 0.5;
-  });
-  const maxZ = Math.max(...imgs.map(img => parseInt(img.style.zIndex) || 1), 1);
-  (function tick() {
-    smx += (mx - smx) * 0.06;
-    smy += (my - smy) * 0.06;
-    imgs.forEach(img => {
-      const depth = 0.2 + ((parseInt(img.style.zIndex) || 1) / maxZ) * 0.8;
-      img.style.top  = `${img._origTop  + smy * depth * 15}px`;
-      img.style.left = `${img._origLeft + smx * depth * 15}px`;
-    });
-    requestAnimationFrame(tick);
-  })();
-}
-
-// Desktop: spring hover pickup — anime.js owns the transform on enter/leave
-function setupHoverPickup(gallery) {
-  loadAnime().then(anime => {
-    Array.from(gallery.querySelectorAll('img')).forEach(img => {
-      img.addEventListener('mouseenter', () => {
-        const rotate = parseFloat(img.style.getPropertyValue('--base-rotate')) || 0;
-        anime({ targets: img, scale: 1.12, rotate: rotate * 0.2, duration: 300, easing: 'spring(1, 100, 8, 0)' });
-      });
-      img.addEventListener('mouseleave', () => {
-        const rotate = parseFloat(img.style.getPropertyValue('--base-rotate')) || 0;
-        anime({ targets: img, scale: 1, rotate: rotate, duration: 380, easing: 'spring(1, 70, 9, 0)' });
-      });
-    });
-  });
-}
-
 // All pages: wordmark spring entrance on load
 function animateWordmark() {
   loadAnime().then(anime => {
@@ -83,27 +42,86 @@ function animateWordmark() {
   });
 }
 
-// Mobile: spring pulse on the card that snaps into focus
-function setupCarouselPulse(gallery) {
-  loadAnime().then(anime => {
-    let isAnimating = false;
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting && !isAnimating) {
-          const img = entry.target.querySelector('img');
-          if (!img) return;
-          isAnimating = true;
-          anime({
-            targets: img,
-            scale: [1, 1.025, 1],
-            duration: 550,
-            easing: 'spring(1, 80, 10, 0)',
-            complete: () => { isAnimating = false; },
-          });
-        }
+// Mobile: infinite carousel with depth effect — center card in foreground, sides recede
+function setupInfiniteCarousel(gallery) {
+  const origCards = Array.from(gallery.querySelectorAll('a'));
+  const n = origCards.length;
+  if (n === 0) return;
+
+  // Assign a random tilt to each original card
+  origCards.forEach(card => {
+    const tilt = (Math.random() * 6 - 3).toFixed(2);
+    card.dataset.tilt = tilt;
+    const img = card.querySelector('img');
+    if (img) img.style.transform = `rotate(${tilt}deg)`;
+  });
+
+  // Prepend clones (reversed insertion = original order prepended)
+  // so immediately left of first real card is the last album
+  [...origCards].reverse().forEach(c => {
+    const clone = c.cloneNode(true);
+    clone.dataset.tilt = c.dataset.tilt;
+    gallery.insertBefore(clone, gallery.firstChild);
+  });
+  // Append clones so scrolling right past last wraps to first
+  origCards.forEach(c => {
+    const clone = c.cloneNode(true);
+    clone.dataset.tilt = c.dataset.tilt;
+    gallery.appendChild(clone);
+  });
+
+  function getCards() { return Array.from(gallery.querySelectorAll('a')); }
+
+  function updateDepth() {
+    const cards = getCards();
+    const galleryCenter = gallery.scrollLeft + gallery.offsetWidth / 2;
+    cards.forEach(card => {
+      const cardCenter = card.offsetLeft + card.offsetWidth / 2;
+      const dist = Math.abs(galleryCenter - cardCenter);
+      const norm = Math.min(dist / (gallery.offsetWidth * 0.6), 1);
+      const scale = 1 - norm * 0.15;
+      const tilt = parseFloat(card.dataset.tilt) || 0;
+      const img = card.querySelector('img');
+      if (img) img.style.transform = `rotate(${tilt}deg) scale(${scale})`;
+    });
+  }
+
+  // Center the first real card on init (index n in the 3n total)
+  requestAnimationFrame(() => {
+    const cards = getCards();
+    const firstReal = cards[n];
+    if (firstReal) {
+      gallery.scrollLeft = firstReal.offsetLeft - (gallery.offsetWidth - firstReal.offsetWidth) / 2;
+    }
+    updateDepth();
+  });
+
+  // After scroll settles, jump back to real cards if in clone zone
+  let scrollTimer;
+  gallery.addEventListener('scroll', () => {
+    updateDepth();
+    clearTimeout(scrollTimer);
+    scrollTimer = setTimeout(() => {
+      const cards = getCards();
+      const galleryCenter = gallery.scrollLeft + gallery.offsetWidth / 2;
+      let centeredIdx = 0, minDist = Infinity;
+      cards.forEach((c, i) => {
+        const d = Math.abs(c.offsetLeft + c.offsetWidth / 2 - galleryCenter);
+        if (d < minDist) { minDist = d; centeredIdx = i; }
       });
-    }, { root: gallery, threshold: 0.8 });
-    gallery.querySelectorAll('a').forEach(card => observer.observe(card));
+      if (centeredIdx < n || centeredIdx >= 2 * n) {
+        const step = n > 1
+          ? cards[n + 1].offsetLeft - cards[n].offsetLeft
+          : (cards[n] ? cards[n].offsetWidth : 300) + 14;
+        const jump = centeredIdx < n ? n * step : -(n * step);
+        gallery.style.scrollSnapType = 'none';
+        gallery.scrollLeft += jump;
+        requestAnimationFrame(() => {
+          gallery.style.scrollSnapType = '';
+          updateDepth();
+        });
+      }
+    }, 200);
   });
 }
 
@@ -212,19 +230,29 @@ function openImage(src, folder) {
   if (index !== -1) {
     currentImageIndex = index;
   }
-  img.classList.remove('visible');
   img.src = src;
+  img.style.opacity = '0';
+  img.style.transform = 'scale(0.88)';
   lightbox.style.display = 'flex';
   lightbox.setAttribute('aria-hidden', 'false');
   document.body.classList.add('noscroll');
   img.focus();
-  setTimeout(() => img.classList.add('visible'), 10);
+  loadAnime().then(anime => {
+    anime({
+      targets: img,
+      opacity: [0, 1],
+      scale: [0.88, 1],
+      duration: 500,
+      easing: 'spring(1, 90, 8, 0)',
+    });
+  });
 }
 
 function closeImage() {
   const lightbox = document.getElementById('lightbox');
   const img = document.getElementById('lightbox-img');
-  img.classList.remove('visible');
+  img.style.opacity = '';
+  img.style.transform = '';
   lightbox.style.display = 'none';
   lightbox.setAttribute('aria-hidden', 'true');
   document.body.classList.remove('noscroll');
@@ -413,10 +441,7 @@ function loadImages(initial = false) {
         setTimeout(() => {
           loadImages(false);
           gallery.style.visibility = 'visible';
-          if (window.innerWidth >= 768) animatePhotoToss(gallery, () => {
-            setupParallax(gallery);
-            setupHoverPickup(gallery);
-          });
+          if (window.innerWidth >= 768) animatePhotoToss(gallery);
 
           const observer = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
@@ -582,32 +607,29 @@ function loadImages(initial = false) {
         img.complete ? Promise.resolve() : new Promise(r => img.addEventListener('load', r, { once: true }))
       )).then(() => {
         layoutIndexGallery();
-        animatePhotoToss(gallery, () => {
-          setupParallax(gallery);
-          setupHoverPickup(gallery);
-        });
+        animatePhotoToss(gallery);
       });
     } else {
-      setupCarouselPulse(gallery);
+      setupInfiniteCarousel(gallery);
     }
   });
   window.addEventListener("resize", layoutIndexGallery);
 
   if (document.body.classList.contains('index-page')) {
-    const links = document.querySelectorAll('#gallery a');
+    const galleryEl = document.getElementById('gallery');
     const flash = document.getElementById('flash-overlay');
 
-    links.forEach(link => {
-      link.addEventListener('click', (e) => {
+    if (galleryEl && flash) {
+      galleryEl.addEventListener('click', (e) => {
+        const link = e.target.closest('a[href]');
+        if (!link) return;
         e.preventDefault();
         flash.classList.remove('flash');
         void flash.offsetWidth; // force reflow
         flash.classList.add('flash');
-        setTimeout(() => {
-          window.location.href = link.href;
-        }, 100);
+        setTimeout(() => { window.location.href = link.href; }, 100);
       });
-    });
+    }
   }
 })();
 
