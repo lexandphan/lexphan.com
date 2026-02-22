@@ -183,7 +183,7 @@ body.album-page #gallery {
   backface-visibility: hidden;
   background: white;
   padding: 5px;
-  box-sizing: content-box;
+  box-sizing: border-box;
 }
 
 .scattered-gallery img.loaded {
