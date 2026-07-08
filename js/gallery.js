@@ -148,11 +148,6 @@ function getAlbumFromLocation() {
   return null;
 }
 
-const WEBP_SUPPORTED = (() => {
-  const c = document.createElement('canvas');
-  return c.toDataURL('image/webp').startsWith('data:image/webp');
-})();
-
 function getSiteBasePath() {
   const galleryScript = document.querySelector('script[src*="js/gallery.js"]');
   if (!galleryScript) return "/";
@@ -162,8 +157,8 @@ function getSiteBasePath() {
 }
 
 function buildImagePath(folder, imageIndex) {
-  const ext = WEBP_SUPPORTED ? 'webp' : 'jpg';
-  return `${getSiteBasePath()}images/${folder}/${imageIndex}.${ext}`;
+  // Site is WebP-only (universally supported since ~2020); JPEG masters live off-repo.
+  return `${getSiteBasePath()}images/${folder}/${imageIndex}.webp`;
 }
 
 async function imageExists(path) {
@@ -240,8 +235,10 @@ function showPrevImage(folder) {
 function openImage(src, folder) {
   const lightbox = document.getElementById('lightbox');
   const img = document.getElementById('lightbox-img');
-  // Use endsWith to avoid index 1 matching "10.jpg", "11.jpg", etc.
-  const index = imageLayoutData.findIndex(d => src.endsWith(`/${d.imgIndex}.jpg`));
+  // Match the numeric stem regardless of extension so prev/next stays in sync
+  // (images are served as .webp; the old '/N.jpg' match silently failed).
+  const stem = src.match(/\/(\d+)\.(?:webp|jpg)(?:\?.*)?$/);
+  const index = stem ? imageLayoutData.findIndex(d => d.imgIndex === Number(stem[1])) : -1;
   if (index !== -1) {
     currentImageIndex = index;
   }
@@ -384,6 +381,30 @@ function loadImages(initial = false) {
 
   imageLayoutData = [];
 
+  // Reveal once every image has settled — loaded OR errored — so a single
+  // missing/slow file can never leave the album permanently blank.
+  const finalize = () => {
+    setTimeout(() => {
+      loadImages(false);
+      gallery.style.visibility = 'visible';
+      if (window.innerWidth >= 768) animatePhotoToss(gallery);
+
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('visible');
+          }
+        });
+      }, {
+        threshold: 0.1
+      });
+
+      document.querySelectorAll('.fade-in').forEach(el => {
+        observer.observe(el);
+      });
+    }, 10);
+  };
+
   imageIndexes.forEach((imgIndex) => {
     const img = new Image();
     img.src = buildImagePath(albumFolder, imgIndex);
@@ -452,27 +473,14 @@ function loadImages(initial = false) {
       gallery.appendChild(domImg);
 
       imagesLoaded++;
-      if (imagesLoaded === totalImages) {
-        setTimeout(() => {
-          loadImages(false);
-          gallery.style.visibility = 'visible';
-          if (window.innerWidth >= 768) animatePhotoToss(gallery);
+      if (imagesLoaded === totalImages) finalize();
+    };
 
-          const observer = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-              if (entry.isIntersecting) {
-                entry.target.classList.add('visible');
-              }
-            });
-          }, {
-            threshold: 0.1
-          });
-
-          document.querySelectorAll('.fade-in').forEach(img => {
-            observer.observe(img);
-          });
-        }, 10);
-      }
+    img.onerror = () => {
+      // Count the miss so the completion gate still fires; the broken frame is
+      // simply skipped (no layout entry, no DOM node).
+      imagesLoaded++;
+      if (imagesLoaded === totalImages) finalize();
     };
   });
 }
