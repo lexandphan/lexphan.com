@@ -1,48 +1,171 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:;">
-  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; base-uri 'self'; object-src 'none'" />
+  <meta name="referrer" content="strict-origin-when-cross-origin" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Playa — phanny</title>
-  <meta name="description" content="Film photos from Playa by phanny." />
-  <meta property="og:title" content="Playa — phanny" />
-  <meta property="og:description" content="Film photos from Playa by phanny." />
+  <title>phanny — photo dump</title>
+  <meta name="description" content="A small, ongoing archive of film photos — light, travel, and the in-between." />
+  <meta property="og:title" content="phanny — photo dump" />
+  <meta property="og:description" content="A small, ongoing archive of film photos — light, travel, and the in-between." />
   <meta property="og:image" content="https://lexphan.com/images/playa/cover.jpg" />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://lexphan.com/album/playa/" />
-  <link rel="preload" as="image" href="../../images/playa/1.webp" type="image/webp">
-  <link rel="preload" as="image" href="../../images/playa/2.webp" type="image/webp">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600&display=swap" rel="stylesheet">
-  <link rel="icon" type="image/svg+xml" href="/assets/phanny-favicon.svg">
-  <link rel="stylesheet" href="../../styles.css" />
+  <link rel="icon" type="image/svg+xml" href="/assets/phanny-favicon.svg" />
+  <link rel="stylesheet" href="/app.css" />
 </head>
-<body class="album-page">
-  <header>
-    <h1>
-      <a href="/">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 80" width="140" height="40" overflow="visible" aria-label="phanny">
-          <text x="0" y="60" font-family="Caveat, cursive" font-weight="600" font-size="72" letter-spacing="-0.01em" fill="#1B1814">phanny</text>
-        </svg>
-      </a>
-    </h1>
-    <nav>
-      <a href="/info.html" title="info">
-        <img src="/assets/phanny-mark.svg" alt="info" width="28" height="28">
-      </a>
-    </nav>
-  </header>
+<body data-album="playa">
 
-  <main id="gallery" class="scattered-gallery" data-count="22"></main>
+  <!-- WebGL layer (populated by curtains.js only when eligible on HOME) -->
+  <div id="curtains-canvas" aria-hidden="true"></div>
 
-  <div id="lightbox" class="lightbox" role="dialog" aria-modal="true" aria-label="Image viewer" aria-hidden="true">
-    <div id="lightbox-swipe-area">
-      <img id="lightbox-img" src="" alt="" />
+  <div id="app">
+    <header class="chrome">
+      <a class="wordmark" href="#home" data-nav="home" aria-label="phanny — home" title="phanny"><span aria-hidden="true">p</span><span aria-hidden="true">h</span><span aria-hidden="true">a</span><span aria-hidden="true">n</span><span aria-hidden="true">n</span><span aria-hidden="true">y</span></a>
+      <div class="chrome-actions">
+        <button class="shuffle-btn" type="button" id="shuffleBtn" aria-label="Reshuffle the covers">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M16 3h5v5" /><path d="M4 20 21 3" /><path d="M21 16v5h-5" /><path d="M15 15l6 6" /><path d="M4 4l5 5" />
+          </svg>
+        </button>
+        <button class="info-btn" type="button" id="infoToggle" aria-haspopup="dialog" aria-expanded="false" aria-controls="site-info" aria-label="Information">
+          <img src="/assets/phanny-mark.svg" alt="" width="23" height="23" />
+          <span class="mark-hold" aria-hidden="true">
+            <svg viewBox="0 0 44 44"><circle class="mh-track" cx="22" cy="22" r="19"/><circle class="mh-fill" cx="22" cy="22" r="19"/></svg>
+          </span>
+        </button>
+      </div>
+    </header>
+
+    <main>
+      <!-- HOME -->
+      <section class="surface" id="surface-home" data-surface="home" aria-label="Cover index">
+        <div class="home-wrap">
+          <div class="masonry" id="homeMasonry"></div>
+        </div>
+      </section>
+
+      <!-- ALBUM -->
+      <section class="surface" id="surface-album" data-surface="album" aria-label="Album" hidden>
+        <div class="album-meta">
+          <a class="meta-back" href="#home" data-nav="home">&larr; Index</a>
+          <span class="meta-dot" aria-hidden="true">·</span>
+        </div>
+        <div class="album-grid" id="albumGrid"></div>
+      </section>
+
+      <!-- INFO is now a mark-toggled popup (#site-info), not a routed surface. -->
+    </main>
+
+  </div>
+
+  <!-- Site INFO popup — desktop: frosted top-right card; mobile: bottom sheet. -->
+  <div id="site-info-scrim" hidden></div>
+  <aside id="site-info" role="dialog" aria-modal="true" aria-label="About phanny" aria-hidden="true" hidden>
+    <div class="si-handle" aria-hidden="true"></div>
+    <div class="row">
+      <span class="lbl">contact</span>
+      <span class="val">
+        <a href="mailto:mail@lexphan.com">mail@lexphan.com</a><br>
+        <a href="https://instagram.com/phannypharkle" target="_blank" rel="noopener">@phannypharkle</a>
+      </span>
+    </div>
+    <div class="row">
+      <span class="lbl">camera</span>
+      <span class="val">mostly minolta tc-1</span>
+    </div>
+    <div class="row">
+      <span class="lbl">context</span>
+      <span class="val ctx">a small, ongoing archive of film photos — light, travel, and the in-between.</span>
+    </div>
+  </aside>
+
+  <!-- LIGHTBOX -->
+  <div id="lightbox" role="dialog" aria-modal="true" aria-hidden="true" aria-label="Photograph viewer">
+    <div class="lb-backdrop" data-close></div>
+    <div class="lb-stage">
+      <button class="lb-nav lb-prev" type="button" aria-label="Previous photograph">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 4 7 12 15 20"/></svg>
+      </button>
+      <figure class="lb-figure">
+        <img id="lb-img" src="" alt="" />
+      </figure>
+      <button class="lb-nav lb-next" type="button" aria-label="Next photograph">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 4 17 12 9 20"/></svg>
+      </button>
+      <button class="lb-close" type="button" aria-label="Close viewer">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>
+      </button>
+      <div class="lb-counter" aria-live="polite">01 / 43</div>
     </div>
   </div>
 
-  <script defer src="../../js/gallery.js"></script>
+  <!-- =========================================================
+       ORBIT OVERLAY (hidden easter egg). Built/torn down lazily.
+       Namespaced ids (ob-*) so nothing collides with the main site.
+       ========================================================= -->
+  <div id="orbit-overlay" hidden aria-hidden="true">
+    <main id="ob-stage" aria-hidden="true">
+      <canvas id="ob-canvas"></canvas>
+    </main>
+    <div id="ob-vignette"></div>
+    <div id="ob-grain"></div>
+
+    <div id="ob-chrome">
+      <a class="ob-wordmark" href="#" aria-label="phanny — return" id="ob-home-link"><span aria-hidden="true">p</span><span aria-hidden="true">h</span><span aria-hidden="true">a</span><span aria-hidden="true">n</span><span aria-hidden="true">n</span><span aria-hidden="true">y</span></a>
+      <button id="ob-info-toggle" type="button" aria-label="info" aria-expanded="false">
+        <img src="/assets/phanny-mark.svg" alt="" />
+      </button>
+
+      <aside id="ob-info" role="dialog" aria-label="about phanny">
+        <div class="row">
+          <span class="lbl">contact</span>
+          <span class="val">
+            <a href="mailto:mail@lexphan.com">mail@lexphan.com</a><br>
+            <a href="https://instagram.com/phannypharkle" target="_blank" rel="noopener">@phannypharkle</a>
+          </span>
+        </div>
+        <div class="row">
+          <span class="lbl">camera</span>
+          <span class="val">mostly minolta tc-1</span>
+        </div>
+        <div class="row">
+          <span class="lbl">context</span>
+          <span class="val ctx">a small, ongoing archive of film photos — light, travel, and the in-between.</span>
+        </div>
+      </aside>
+
+      <button id="ob-reset" type="button" aria-label="reset — ease back to the whole cloud">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M4 12a8 8 0 1 0 2.4-5.7" />
+          <path d="M4 4v4h4" />
+        </svg>
+      </button>
+    </div>
+
+    <div id="ob-focusUI">
+      <button id="ob-fprev" class="fnav" aria-label="previous frame">&#8249;</button>
+      <button id="ob-fnext" class="fnav" aria-label="next frame">&#8250;</button>
+      <div id="ob-fcount"><b>1</b> / 5</div>
+    </div>
+
+    <div id="ob-hint">drag to spin &nbsp;·&nbsp; scroll to dive in</div>
+
+    <div id="ob-loader">
+      <div class="load-inner">
+        <img class="load-mark" src="/assets/phanny-mark.svg" alt="" />
+        <div class="load-bar"><i id="ob-load-fill"></i></div>
+        <div class="load-word">developing</div>
+      </div>
+    </div>
+  </div>
+  <script src="/vendor/gsap.min.js"></script>
+  <script src="/vendor/ScrollTrigger.min.js"></script>
+  <script src="/vendor/Flip.min.js"></script>
+  <script src="/vendor/lenis.min.js"></script>
+  <script src="/vendor/curtains.umd.min.js"></script>
+  <script src="/app.js"></script>
+  <script type="module" src="/orbit.js"></script>
 </body>
 </html>
