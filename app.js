@@ -1153,12 +1153,17 @@
       }
 
       /* pause the main site while orbit runs */
+      function setThemeColor(c) {
+        var m = document.querySelector('meta[name="theme-color"]');
+        if (m) m.setAttribute('content', c);
+      }
       function pauseMain() {
         savedScroll = window.pageYOffset || 0;
         savedView = currentView();
         wasCurtains = curtainsActive();
         if (lenis) { try { lenis.stop(); } catch (e) {} }
         document.documentElement.classList.add('orbit-open');
+        setThemeColor('#141210');   /* orbit is dark → tint the mobile status/toolbar bars to match */
         if (app) app.setAttribute('inert', '');
         if (wasCurtains) {                                 /* hide WebGL canvas so DOM covers can warp */
           document.documentElement.classList.add('curtains-reshuffling');
@@ -1168,6 +1173,7 @@
       function restoreMain() {
         if (app) app.removeAttribute('inert');
         document.documentElement.classList.remove('orbit-open');
+        setThemeColor('#F1ECE1');   /* back to the paper site */
         window.scrollTo(0, savedScroll);
         if (lenis) { try { lenis.start(); } catch (e) {} }
         if (lastScrollY !== undefined) lastScrollY = savedScroll;

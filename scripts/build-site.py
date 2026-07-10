@@ -12,6 +12,7 @@ TEMPLATE = """<!doctype html>
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; base-uri 'self'; object-src 'none'" />
   <meta name="referrer" content="strict-origin-when-cross-origin" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#F1ECE1" />
   <title>phanny — photo dump</title>
   <meta name="description" content="A small, ongoing archive of film photos — light, travel, and the in-between." />
   <meta property="og:title" content="phanny — photo dump" />
