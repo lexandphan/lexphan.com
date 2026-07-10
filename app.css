@@ -75,7 +75,9 @@
       gap: 1rem;
       padding: clamp(13px, 1.9vw, 20px) clamp(18px, 4vw, 44px);
       padding-top: calc(clamp(13px, 1.9vw, 20px) + env(safe-area-inset-top, 0px));   /* clear the notch */
-      background: #F4F1EA;   /* opaque, seamless with the paper safe-area above it */
+      background: rgba(244, 241, 234, 0.72);
+      -webkit-backdrop-filter: blur(10px) saturate(1.05);
+      backdrop-filter: blur(10px) saturate(1.05);
       border-bottom: 1px solid var(--line);
     }
     .wordmark {

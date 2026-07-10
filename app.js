@@ -1157,8 +1157,14 @@
 
       /* pause the main site while orbit runs */
       function setThemeColor(c) {
+        /* iOS Safari often ignores attribute mutations on an existing theme-color meta —
+           it reliably notices node removal + insertion, so replace the tag outright. */
         var m = document.querySelector('meta[name="theme-color"]');
-        if (m) m.setAttribute('content', c);
+        if (m && m.parentNode) m.parentNode.removeChild(m);
+        m = document.createElement('meta');
+        m.setAttribute('name', 'theme-color');
+        m.setAttribute('content', c);
+        document.head.appendChild(m);
       }
       function pauseMain() {
         savedScroll = window.pageYOffset || 0;
@@ -1166,7 +1172,7 @@
         wasCurtains = curtainsActive();
         if (lenis) { try { lenis.stop(); } catch (e) {} }
         document.documentElement.classList.add('orbit-open');
-        setThemeColor('#141210');   /* orbit is dark → tint the mobile status/toolbar bars to match */
+        setThemeColor('#0C0A07');   /* orbit is dark → tint the mobile status/toolbar bars to match the scene */
         if (app) app.setAttribute('inert', '');
         if (wasCurtains) {                                 /* hide WebGL canvas so DOM covers can warp */
           document.documentElement.classList.add('curtains-reshuffling');
@@ -1176,7 +1182,7 @@
       function restoreMain() {
         if (app) app.removeAttribute('inert');
         document.documentElement.classList.remove('orbit-open');
-        setThemeColor('#F1ECE1');   /* back to the paper site */
+        setThemeColor('#F4F1EA');   /* back to the paper site */
         window.scrollTo(0, savedScroll);
         if (lenis) { try { lenis.start(); } catch (e) {} }
         if (lastScrollY !== undefined) lastScrollY = savedScroll;
