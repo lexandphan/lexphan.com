@@ -75,9 +75,7 @@
       gap: 1rem;
       padding: clamp(13px, 1.9vw, 20px) clamp(18px, 4vw, 44px);
       padding-top: calc(clamp(13px, 1.9vw, 20px) + env(safe-area-inset-top, 0px));   /* clear the notch */
-      background: rgba(244, 241, 234, 0.72);
-      -webkit-backdrop-filter: blur(10px) saturate(1.05);
-      backdrop-filter: blur(10px) saturate(1.05);
+      background: #F4F1EA;   /* opaque, seamless with the paper safe-area above it */
       border-bottom: 1px solid var(--line);
     }
     .wordmark {
@@ -644,7 +642,9 @@
     }
 
     /* while orbit is open: lock the page, quiet the main chrome (one wordmark rule) */
-    html.orbit-open, html.orbit-open body { overflow: hidden; }
+    /* while the orbit is open, the ROOT/body bg is what paints the iOS safe areas (status bar +
+       home indicator) under viewport-fit=cover — make it dark so those bars match the orbit, not paper */
+    html.orbit-open, html.orbit-open body { overflow: hidden; background: #0C0A07; }
     html.orbit-open header.chrome, html.orbit-open .proto {
       opacity: 0 !important; pointer-events: none !important;
       transition: opacity .4s var(--ease);
