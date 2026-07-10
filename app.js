@@ -111,7 +111,7 @@
     function makePrint(cover, index) {
       var a = document.createElement('a');
       a.className = 'print';
-      a.href = '#album';
+      a.href = '/album/' + cover.folder + '/';
       a.setAttribute('data-nav', 'album');
       a.setAttribute('aria-label', 'View album');
       a._folder = cover.folder;
@@ -722,11 +722,17 @@
     });
 
     /* ================= ALBUM ================= */
-    var ALBUM_FOLDER = 'kyoto';
-    var ALBUM_COUNT  = 43;
+    var ALBUM_META = { tahoe:61, cdmxye:22, playa:22, pdt:28, splash:51, kyoto:43, tokyo:30, sapporo:13, pv:84, cdmx:33, oax:13, bali:40, japan:31 };
+    function albumFromLocation() {
+      var m = (location.pathname || '').match(/\/album\/([a-z0-9]+)\/?$/i);
+      return (m && ALBUM_META[m[1]]) ? m[1] : null;
+    }
+    var ALBUM_FOLDER = (document.body.dataset.album && ALBUM_META[document.body.dataset.album]) ? document.body.dataset.album
+                     : (albumFromLocation() || 'kyoto');
+    var ALBUM_COUNT  = ALBUM_META[ALBUM_FOLDER];
     var frames = [];
 
-    (function buildAlbum() {
+    function buildAlbum() {
       var html = '';
       for (var i = 1; i <= ALBUM_COUNT; i++) {
         var pinned = (i % 15 === 0) ? ' pinned' : '';
@@ -744,7 +750,18 @@
           openLightbox(parseInt(f.getAttribute('data-i'), 10), f);
         });
       });
-    })();
+    }
+    buildAlbum();
+
+    /* switch which album the album-view renders (used by in-app nav + popstate);
+       re-arms the reveal stagger so each newly-entered album animates in */
+    function switchAlbum(name) {
+      if (!ALBUM_META[name] || name === ALBUM_FOLDER) return;
+      ALBUM_FOLDER = name;
+      ALBUM_COUNT  = ALBUM_META[name];
+      buildAlbum();
+      albumPrimed = false;
+    }
 
     var albumPrimed = false;
     function primeAlbum() {
@@ -797,7 +814,13 @@
     }
 
     /* ================= routing (base behaviour + curtains/Lenis lifecycle) ================= */
+    /* current view: an in-app pushState/popstate entry (history.state) is authoritative once
+       one exists; the very first load (no state yet) is decided from data-album / the real
+       /album/<name>/ URL path, falling back to the legacy #hash / ?view= scheme, then Home. */
     function currentView() {
+      var st = history.state;
+      if (st && VIEWS.indexOf(st.view) !== -1) return st.view;
+      if ((document.body.dataset.album && ALBUM_META[document.body.dataset.album]) || albumFromLocation()) return 'album';
       var h = (location.hash || '').replace('#', '').toLowerCase();
       if (VIEWS.indexOf(h) !== -1) return h;
       var q = (new URLSearchParams(location.search).get('view') || '').toLowerCase();
@@ -805,9 +828,10 @@
       return 'home';
     }
 
+    /* DOM-only view switch (no URL/History side effects) — used for the initial render,
+       for popstate restores, and as the last step of navigate() below. */
     var prevView = null;
-    function render() {
-      var v = currentView();
+    function navigateView(v) {
       document.documentElement.setAttribute('data-view', v);
       surfaces.forEach(function (s) { s.hidden = (s.getAttribute('data-surface') !== v); });
 
@@ -826,12 +850,16 @@
       }
     }
 
-    function navigate(v) {
-      var url = new URL(location.href);
-      url.searchParams.set('view', v);
-      url.hash = v;
-      history.pushState({ v: v }, '', url);
-      render();
+    function render() { navigateView(currentView()); }
+
+    /* navigate('home') or navigate('album', folder): switches the DOM view, then pushes the
+       real shareable URL (/album/<name>/ or /) so Back/Forward/refresh behave. */
+    function navigate(v, name) {
+      if (v === 'album' && name) switchAlbum(name);
+      navigateView(v);
+      var album = (v === 'album') ? (name || ALBUM_FOLDER) : null;
+      var url = album ? ('/album/' + album + '/') : '/';
+      if (location.pathname !== url) history.pushState({ view: v, album: album }, '', url);
     }
 
     document.addEventListener('click', function (e) {
@@ -840,9 +868,17 @@
       /* clicking the wordmark while already home = reshuffle, not navigate */
       if (t === wordmark && currentView() === 'home') { e.preventDefault(); reshuffle(); return; }
       e.preventDefault();
-      navigate(t.getAttribute('data-nav'));
+      navigate(t.getAttribute('data-nav'), t._folder);
     });
-    window.addEventListener('popstate', render);
+    window.addEventListener('popstate', function (e) {
+      var st = e.state || {};
+      if (st.view === 'album' && st.album && ALBUM_META[st.album]) {
+        switchAlbum(st.album);
+        navigateView('album');
+      } else {
+        navigateView('home');
+      }
+    });
     window.addEventListener('hashchange', render);
 
     /* ================= LIGHTBOX ================= */
@@ -1266,6 +1302,12 @@
     }
 
     /* ================= boot ================= */
+    /* prime the initial history entry with real state so a Back to it (after in-app nav)
+       restores the correct view/album instead of falling through to Home */
+    try {
+      var initView = currentView();
+      history.replaceState({ view: initView, album: (initView === 'album') ? ALBUM_FOLDER : null }, '', location.href);
+    } catch (e) {}
     render();
     if (GS && !reduce && wordmark) {
       GS.from(wordmark, { opacity: 0, scale: 0.96, duration: 0.8, ease: 'back.out(1.5)' });
