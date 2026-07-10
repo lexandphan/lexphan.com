@@ -11,7 +11,7 @@
 ## Global Constraints
 
 - **No external runtime requests.** Every `<script>`, `<link>`, `@font-face src`, and `import` must resolve to same-origin `/vendor/...`, `/app.*`, `/orbit.js`, `/assets/...`, or `/images/...`. Zero references to `cdnjs.cloudflare.com`, `cdn.jsdelivr.net`, `fonts.googleapis.com`, `fonts.gstatic.com`.
-- **CSP stays strict:** `default-src 'self'; img-src 'self' data:; base-uri 'self'; object-src 'none'` on every HTML page. No inline event handlers (`onclick=` etc.) — the mockup already uses `addEventListener`; keep it that way (the old `index.html` had one `onclick="closeImage()"` — it is discarded with that file).
+- **CSP** on every HTML page: `default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; base-uri 'self'; object-src 'none'`. Scripts stay strict `'self'` — no inline: the importmap is DROPPED, and `orbit.js` imports `/vendor/three.module.js` directly (a bare-specifier `import('three')` would need an inline importmap, which strict script-CSP blocks → orbit fails). `style-src 'unsafe-inline'` is required because GSAP/Flip/curtains set element styles dynamically (verified: strict style-src blocks Flip's `cssText`). No inline event handlers (`onclick=` etc.); the mockup uses `addEventListener` (the old `index.html`'s one `onclick` is discarded with that file).
 - **WebP-only** — build only `.webp` image paths; never reintroduce `<picture>`/jpg fallbacks (`cover.jpg` is OG-preview only, referenced only in `<meta>`).
 - **Anonymous** — no album titles/labels in the UI. Album names appear ONLY in URLs, `<title>`, and OG meta — never as visible on-page text.
 - **13 albums + counts (mirror `images/<name>/`):** `tahoe:61, cdmxye:22, playa:22, pdt:28, splash:51, kyoto:43, tokyo:30, sapporo:13, pv:84, cdmx:33, oax:13, bali:40, japan:31`.
@@ -51,7 +51,7 @@ DELETE: /styles.css, /js/gallery.js, /album.html, old /album/<name>/index.html (
 - Create: `mockups/vendor/`… no — Create at repo root: `vendor/gsap.min.js`, `vendor/ScrollTrigger.min.js`, `vendor/Flip.min.js`, `vendor/lenis.min.js`, `vendor/curtains.umd.min.js`
 
 **Interfaces:**
-- Produces: global `window.gsap`, `window.ScrollTrigger`, `window.Flip`, `window.Lenis`, `window.Curtains`/`window.Plane` when these files are loaded via `<script>` (UMD). `/orbit.js` continues to import Three from the existing `/vendor/three.module.js` via importmap.
+- Produces: global `window.gsap`, `window.ScrollTrigger`, `window.Flip`, `window.Lenis`, `window.Curtains`/`window.Plane` when these files are loaded via `<script>` (UMD). `/orbit.js` imports Three via a direct dynamic import of `/vendor/three.module.js` (no importmap).
 
 - [ ] **Step 1: Create the go-live branch**
 
@@ -169,7 +169,7 @@ This is the core refactor. Deliverable: the app runs from shared same-origin fil
 - Produces:
   - `/app.css` — all of the mockup's `<style>` text, with `@import '/vendor/fonts/fonts.css';` at the very top; every `../assets/…`/`../images/…` rewritten to `/assets/…`/`/images/…`.
   - `/app.js` — the mockup's **main** (plain, non-module) `<script>` body verbatim EXCEPT: (a) `../images`/`../assets` → `/images`/`/assets`; (b) the prototype surface-switcher wiring removed; (c) the `window.__eggTrigger`/`__eggExit`/`__infoToggle` assignments removed; (d) album generalization + History routing added in Task 4 (leave a clearly-marked seam here). Uses globals `window.gsap/ScrollTrigger/Flip/Lenis/Curtains/Plane`.
-  - `/orbit.js` — the mockup's `<script type="module">` (the `window.orbitApp` block) verbatim EXCEPT `../images`/`../assets` → `/images`/`/assets`. Imports `three` (resolved by the importmap each HTML declares).
+  - `/orbit.js` — the mockup's `<script type="module">` (the `window.orbitApp` block) verbatim EXCEPT `../images`/`../assets` → `/images`/`/assets` AND the lazy `import('three')` → `import('/vendor/three.module.js')` (direct path, so no inline importmap is needed and script-src stays strict `'self'`).
 
 - [ ] **Step 1: Extract the three payloads out of mockups/main.html**
 
@@ -376,7 +376,7 @@ Create `index.html`. `<head>` carries the strict CSP, meta/OG (from the current 
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; base-uri 'self'; object-src 'none'" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; base-uri 'self'; object-src 'none'" />
   <meta name="referrer" content="strict-origin-when-cross-origin" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>phanny — photo dump</title>
@@ -387,7 +387,6 @@ Create `index.html`. `<head>` carries the strict CSP, meta/OG (from the current 
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://lexphan.com/" />
   <link rel="icon" type="image/svg+xml" href="/assets/phanny-favicon.svg" />
-  <script type="importmap">{ "imports": { "three": "/vendor/three.module.js" } }</script>
   <link rel="stylesheet" href="/app.css" />
 </head>
 <body>
@@ -463,7 +462,7 @@ TEMPLATE = """<!doctype html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; base-uri 'self'; object-src 'none'" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; base-uri 'self'; object-src 'none'" />
   <meta name="referrer" content="strict-origin-when-cross-origin" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>phanny — photo dump</title>
@@ -474,7 +473,6 @@ TEMPLATE = """<!doctype html>
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://lexphan.com/album/{name}/" />
   <link rel="icon" type="image/svg+xml" href="/assets/phanny-favicon.svg" />
-  <script type="importmap">{{ "imports": {{ "three": "/vendor/three.module.js" }} }}</script>
   <link rel="stylesheet" href="/app.css" />
 </head>
 <body data-album="{name}">

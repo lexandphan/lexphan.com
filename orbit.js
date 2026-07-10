@@ -18,7 +18,7 @@
       status = 'loading';
       if (!hasWebGL()) { status = 'idle'; return false; }
       try {
-        if (!THREE) THREE = await import('three');          // LAZY: first fetch of three here
+        if (!THREE) THREE = await import('/vendor/three.module.js');   // LAZY: first fetch of three here (direct path, no importmap → strict script CSP)
       } catch (e) {
         if (window.console) console.warn('[orbit] three load failed', e);
         status = 'idle'; return false;
