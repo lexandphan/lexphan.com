@@ -865,6 +865,8 @@
     document.addEventListener('click', function (e) {
       var t = e.target.closest ? e.target.closest('[data-nav]') : null;
       if (!t) return;
+      /* let modified clicks (cmd/ctrl/shift/alt) fall through so an album opens in a new tab/window */
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
       /* clicking the wordmark while already home = reshuffle, not navigate */
       if (t === wordmark && currentView() === 'home') { e.preventDefault(); reshuffle(); return; }
       e.preventDefault();
