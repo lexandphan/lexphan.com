@@ -31,6 +31,7 @@
       --hand: 'Caveat', 'Segoe Script', cursive;
     }
 
+    html { background: #F4F1EA; }   /* paper base fills the iOS safe areas (status bar / home indicator) under viewport-fit=cover */
     body {
       font-family: var(--sans);
       font-weight: 400;
@@ -73,6 +74,7 @@
       align-items: center;
       gap: 1rem;
       padding: clamp(13px, 1.9vw, 20px) clamp(18px, 4vw, 44px);
+      padding-top: calc(clamp(13px, 1.9vw, 20px) + env(safe-area-inset-top, 0px));   /* clear the notch */
       background: rgba(244, 241, 234, 0.72);
       -webkit-backdrop-filter: blur(10px) saturate(1.05);
       backdrop-filter: blur(10px) saturate(1.05);
@@ -656,7 +658,7 @@
     #orbit-overlay {
       position: fixed; inset: 0; z-index: 5000;
       isolation: isolate; overflow: hidden;
-      background: #F1ECE1; color: #26221D;
+      background: #0C0A07; color: #26221D;   /* dark base so the safe areas stay dark in the orbit */
       opacity: 0; transition: opacity .6s var(--ease);
       -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
       /* orbit's own palette + easing, scoped to this subtree */
@@ -696,13 +698,13 @@
     #orbit-overlay #ob-chrome { position: absolute; inset: 0; z-index: 6; pointer-events: none; opacity: 0; transition: opacity 1.2s var(--ease) .3s; }
     #orbit-overlay #ob-chrome.ready { opacity: 1; }
     #orbit-overlay .ob-wordmark {
-      position: absolute; top: clamp(16px, 2.4vw, 30px); left: clamp(18px, 2.6vw, 34px);
+      position: absolute; top: calc(clamp(16px, 2.4vw, 30px) + env(safe-area-inset-top, 0px)); left: clamp(18px, 2.6vw, 34px);
       pointer-events: auto; font-family: var(--hand); font-size: clamp(30px, 4vw, 46px);
       line-height: 1; color: var(--paper); text-decoration: none; letter-spacing: .3px;
       user-select: none; text-shadow: 0 1px 3px rgba(0,0,0,.35);
     }
     #orbit-overlay #ob-info-toggle {
-      position: absolute; top: clamp(14px, 2.2vw, 28px); right: clamp(16px, 2.4vw, 30px);
+      position: absolute; top: calc(clamp(14px, 2.2vw, 28px) + env(safe-area-inset-top, 0px)); right: clamp(16px, 2.4vw, 30px);
       pointer-events: auto; width: 40px; height: 40px; padding: 6px; display: grid; place-items: center;
       border-radius: 50%; transition: transform .5s var(--ease), background .4s var(--ease);
     }
@@ -710,7 +712,7 @@
     #orbit-overlay #ob-info-toggle img { width: 26px; height: 26px; display: block; opacity: .82; filter: brightness(0) invert(1); }
 
     #orbit-overlay #ob-info {
-      position: absolute; top: clamp(58px, 6.4vw, 78px); right: clamp(16px, 2.4vw, 30px); z-index: 7;
+      position: absolute; top: calc(clamp(58px, 6.4vw, 78px) + env(safe-area-inset-top, 0px)); right: clamp(16px, 2.4vw, 30px); z-index: 7;
       width: min(300px, calc(100vw - 32px)); pointer-events: auto;
       background: rgba(246,242,234,0.86);
       -webkit-backdrop-filter: blur(14px) saturate(1.1); backdrop-filter: blur(14px) saturate(1.1);
@@ -782,7 +784,7 @@
 
     /* reset control (ported from orbit.html #recenter; lives inside #ob-chrome to inherit its fade-in) */
     #orbit-overlay #ob-reset {
-      position: absolute; left: clamp(16px, 2.6vw, 30px); bottom: clamp(20px, 3.4vh, 34px);
+      position: absolute; left: clamp(16px, 2.6vw, 30px); bottom: calc(clamp(20px, 3.4vh, 34px) + env(safe-area-inset-bottom, 0px));
       z-index: 7; pointer-events: auto;
       display: inline-flex; align-items: center; justify-content: center;
       width: 40px; height: 40px; padding: 0; border-radius: 50%;
