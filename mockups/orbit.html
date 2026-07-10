@@ -402,7 +402,9 @@
         const Z_ORB   = homePos.length();                // farthest zoom = the whole-orb vantage
         const SHELL   = R * 0.55;                         // zoom below this = nucleus mode (drag = look)
         const ZOOM_RATE = 7.0;                            // how fast zoom eases toward its target (snappy)
-        const ROT_ORB = 0.006;                            // trackball sensitivity (rad per px)
+        const ROT_ORB = 0.006;                            // horizontal trackball sensitivity (rad per px)
+        const ROT_ORB_V = 0.006 * 0.4;                    // vertical is gentler -> harder to tip the orb over
+        const MAX_PITCH = THREE.MathUtils.degToRad(58);   // clamp the tilt so the orb never goes upside down
         const SPIN_DECAY = 2.4;                           // trackball momentum decay (per sec)
         const WORLD_UP = new THREE.Vector3(0, 1, 0);
         const WORLD_RIGHT = new THREE.Vector3(1, 0, 0);
@@ -775,13 +777,15 @@
 
         // cloud rotation = gentle auto-revolution (autoQuat, from cloudT) * user trackball (spinQuat)
         const autoQuat = new THREE.Quaternion();
-        const spinQuat = new THREE.Quaternion();
-        const spinVel  = new THREE.Vector3(0, 0, 0);   // trackball momentum: world-frame angular velocity
+        const spinQuat = new THREE.Quaternion();       // user orb spin, rebuilt each frame from yaw/pitch
+        let userYaw = 0, userPitch = 0;                // orb longitude (free) + latitude (clamped upright)
+        let yawVel = 0, pitchVel = 0;                  // fling momentum, per-axis scalars
+        const _qy = new THREE.Quaternion(), _qp = new THREE.Quaternion();   // scratch: yaw/pitch quats
         const _dq      = new THREE.Quaternion();       // scratch delta rotation
         const _prevCloud = new THREE.Quaternion();     // last frame's cloudQuat (for the rigid per-frame spin delta)
         const _deltaCloud = new THREE.Quaternion();    // this frame's incremental cloud rotation (world frame)
         const _qInv    = new THREE.Quaternion();       // scratch inverse
-        const spinTarget = new THREE.Quaternion();     // while viewing: the spin that brings `focused` to the front
+        let focusYawTarget = 0;                         // while viewing in orb mode: yaw that brings `focused` to front
         const _sv      = new THREE.Vector3();          // scratch: a frame's home direction
 
         let focusMode = false;
@@ -849,8 +853,7 @@
         function aimFrontToFocus() {
           if (!focused) return;
           _sv.copy(focused.userData.home).applyQuaternion(autoQuat);   // this photo's current world direction
-          // a HORIZONTAL turn only (about world-up) -> the orb spins like a globe, never flips over the top
-          spinTarget.setFromAxisAngle(WORLD_UP, -Math.atan2(_sv.x, _sv.z));
+          focusYawTarget = -Math.atan2(_sv.x, _sv.z);                  // the yaw that turns it to the front (globe turn)
         }
         function enterFocus(mesh) {
           focusMode = true;
@@ -859,6 +862,7 @@
           mesh.userData.swapScale = 1;   // never view a frame that's mid-shrink
           focusSeq = mesh.userData.seqIndex;   // begin stepping from THIS photo's spot in its album
           focusPrev = null;
+          yawVel = 0; pitchVel = 0;            // a tap ends any fling -> no stale momentum survives the focus session
           if (focusOrbMode) { zoomTarget = Z_ORB; aimFrontToFocus(); }   // orb: stay outside, spin photo to front
           lastInteract = clock.getElapsedTime();
           document.getElementById('focusUI').classList.add('active');
@@ -887,7 +891,7 @@
         function recenter() {
           if (focusMode) exitFocus();
           zoomTarget = Z_ORB;
-          spinVel.set(0, 0, 0);
+          yawVel = 0; pitchVel = 0; userPitch = 0;   // stop the fling and level the orb
           hideHint();
         }
         // Leave orbit. In this standalone sandbox that means navigating back to the masonry build;
@@ -982,12 +986,12 @@
           }
 
           if (zoom > SHELL) {
-            // ORB mode: trackball-spin the whole cloud (world frame) + capture flick momentum
-            _dq.setFromAxisAngle(WORLD_UP, -dx * ROT_ORB);
-            tmpQ.setFromAxisAngle(WORLD_RIGHT, -dy * ROT_ORB);
-            spinQuat.premultiply(_dq.multiply(tmpQ));
-            _fwd2.set(-dy * ROT_ORB, -dx * ROT_ORB, 0).multiplyScalar(1 / dt);
-            spinVel.lerp(_fwd2, 0.35);
+            // ORB mode: spin like a globe. Horizontal = free longitude; vertical = gentler and CLAMPED
+            // latitude, so multidirectional exploring never tips the orb upside down.
+            userYaw -= dx * ROT_ORB;
+            userPitch = THREE.MathUtils.clamp(userPitch - dy * ROT_ORB_V, -MAX_PITCH, MAX_PITCH);
+            yawVel += (-dx * ROT_ORB / dt - yawVel) * 0.35;         // horizontal fling carries
+            pitchVel += (-dy * ROT_ORB_V / dt - pitchVel) * 0.35;
           } else {
             // NUCLEUS mode: look around (accumulate into the look target; inverted axes, no timing math)
             cam.tYaw += dx * ROT;
@@ -1214,16 +1218,28 @@
             cloudE.set(0.16 * Math.sin(cloudT * 0.011), cloudT * ORBIT_SPIN, 0.11 * Math.sin(cloudT * 0.008));
             autoQuat.setFromEuler(cloudE);   // gentle auto-revolution
             if (focusMode && focusOrbMode) {
-              // ORB viewer: spin the orb so the focused photo swings to the front (globe-style)
-              spinQuat.slerp(spinTarget, smooth(3.0, dt));
-              spinVel.set(0, 0, 0);
-            } else if (!pointerDown && !focusMode && spinVel.lengthSq() > 1e-7) {
-              // trackball momentum (orb mode): decaying angular velocity applied to the user spin
-              _dq.setFromAxisAngle(_fwd2.copy(spinVel).normalize(), spinVel.length() * dt);
-              spinQuat.premultiply(_dq);
-              spinVel.multiplyScalar(Math.exp(-SPIN_DECAY * dt));
+              // ORB viewer: turn the orb (yaw) to bring the focused photo to the front, and level it
+              userYaw += angDiff(focusYawTarget, userYaw) * smooth(3.0, dt);
+              userPitch += (0 - userPitch) * smooth(3.0, dt);
+              yawVel = 0; pitchVel = 0;
+            } else if (orbMode && !pointerDown && !focusMode && (Math.abs(yawVel) > 1e-4 || Math.abs(pitchVel) > 1e-4)) {
+              // fling momentum (ORB mode only): decaying per-axis velocity; pitch stays clamped so it can't flip
+              userYaw += yawVel * dt;
+              userPitch = THREE.MathUtils.clamp(userPitch + pitchVel * dt, -MAX_PITCH, MAX_PITCH);
+              const decay = Math.exp(-SPIN_DECAY * dt);
+              yawVel *= decay; pitchVel *= decay;
+            } else if (!pointerDown && (yawVel !== 0 || pitchVel !== 0)) {
+              // in nucleus / focus with the pointer up: bleed any leftover fling away so it can't freeze
+              // and later resurrect as a cloud lurch when you return to orb mode
+              const decay = Math.exp(-SPIN_DECAY * dt);
+              yawVel *= decay; pitchVel *= decay;
+              if (Math.abs(yawVel) < 1e-4 && Math.abs(pitchVel) < 1e-4) { yawVel = 0; pitchVel = 0; }
             }
-            cloudQuat.copy(spinQuat).multiply(autoQuat);   // user trackball (world) on top of the auto-spin
+            // rebuild the user spin = yaw (about world up) then pitch (about world right) -> never rolls/inverts
+            _qy.setFromAxisAngle(WORLD_UP, userYaw);
+            _qp.setFromAxisAngle(WORLD_RIGHT, userPitch);
+            spinQuat.copy(_qy).multiply(_qp);
+            cloudQuat.copy(spinQuat).multiply(autoQuat);   // user orb spin on top of the auto-revolution
             // world-frame rotation applied to the cloud since last frame = cloudQuat * prevCloud^-1.
             // Used to spin the live positions RIGIDLY during an orb drag (preserves the relaxed spacing).
             _deltaCloud.copy(cloudQuat).multiply(_qInv.copy(_prevCloud).invert());
