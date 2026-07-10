@@ -1,0 +1,811 @@
+@import '/vendor/fonts/fonts.css';
+
+    /* ---- reset ---- */
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { margin: 0; }
+    img { display: block; max-width: 100%; }
+    button { font: inherit; color: inherit; }
+    a { color: inherit; }
+
+    /* ---- tokens (from base, verbatim) ---- */
+    :root {
+      --paper:      #F4F1EA;
+      --paper-deep: #ECE7DC;
+      --ink:        #26221D;
+      --ink-2:      #5E574E;   /* AA on paper: ~6.3:1 */
+      --print:      #FFFFFF;
+      --line:       rgba(38, 34, 29, 0.10);
+      --accent:     #9C6B3F;   /* warm sienna, used only in micro-doses */
+      --backdrop:   rgba(23, 19, 15, 0.94);
+
+      /* ONE shadow system */
+      --shadow:      0 10px 30px -12px rgba(40, 32, 24, 0.28);
+      --shadow-lift: 0 20px 46px -16px rgba(40, 32, 24, 0.36);
+
+      --gap:  clamp(14px, 1.8vw, 26px);
+      --maxw: 1240px;
+      --ease: cubic-bezier(.2, .7, .2, 1);
+
+      --sans: 'Bricolage Grotesque', system-ui, -apple-system, 'Segoe UI', sans-serif;
+      --mono: 'Space Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+      --hand: 'Caveat', 'Segoe Script', cursive;
+    }
+
+    body {
+      font-family: var(--sans);
+      font-weight: 400;
+      color: var(--ink);
+      background: radial-gradient(135% 110% at 50% -10%, var(--paper) 0%, var(--paper-deep) 100%);
+      background-attachment: fixed;
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+      overflow-x: hidden;
+    }
+
+    /* single, STATIC film grain — no motion */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      z-index: 1;
+      pointer-events: none;
+      opacity: 0.026;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)'/%3E%3C/svg%3E");
+      background-size: 180px 180px;
+    }
+
+    :focus-visible {
+      outline: 2px solid var(--ink);
+      outline-offset: 3px;
+      border-radius: 2px;
+    }
+
+    [hidden] { display: none !important; }
+
+    /* ---- header / chrome ---- */
+    header.chrome {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      padding: clamp(13px, 1.9vw, 20px) clamp(18px, 4vw, 44px);
+      background: rgba(244, 241, 234, 0.72);
+      -webkit-backdrop-filter: blur(10px) saturate(1.05);
+      backdrop-filter: blur(10px) saturate(1.05);
+      border-bottom: 1px solid var(--line);
+    }
+    .wordmark {
+      font-family: var(--hand);
+      font-weight: 600;
+      font-size: clamp(1.85rem, 3.4vw, 2.35rem);
+      line-height: 1;
+      letter-spacing: -0.01em;
+      color: var(--ink);
+      text-decoration: none;
+      padding: 2px 4px;
+      transform-origin: left center;
+    }
+    html[data-view="home"] .wordmark { cursor: pointer; }
+    /* wordmark letter-bounce ripple on hover (shared by the masonry mark + the orbit mark) */
+    .wordmark span, #orbit-overlay .ob-wordmark span { display: inline-block; }
+    .wordmark:hover span, #orbit-overlay .ob-wordmark:hover span { animation: wm-bob .5s var(--ease) both; }
+    .wordmark span:nth-child(1), #orbit-overlay .ob-wordmark span:nth-child(1) { animation-delay: 0s; }
+    .wordmark span:nth-child(2), #orbit-overlay .ob-wordmark span:nth-child(2) { animation-delay: .045s; }
+    .wordmark span:nth-child(3), #orbit-overlay .ob-wordmark span:nth-child(3) { animation-delay: .09s; }
+    .wordmark span:nth-child(4), #orbit-overlay .ob-wordmark span:nth-child(4) { animation-delay: .135s; }
+    .wordmark span:nth-child(5), #orbit-overlay .ob-wordmark span:nth-child(5) { animation-delay: .18s; }
+    .wordmark span:nth-child(6), #orbit-overlay .ob-wordmark span:nth-child(6) { animation-delay: .225s; }
+    @keyframes wm-bob { 0%, 100% { transform: translateY(0); } 42% { transform: translateY(-0.22em); } }
+    /* click flash: phanny snaps to the loader/accent color, then fades back */
+    .wordmark, #orbit-overlay .ob-wordmark { transition: color .55s var(--ease); }
+    .wordmark:active, #orbit-overlay .ob-wordmark:active { color: var(--accent); transition: none; }
+    .chrome-actions { display: flex; align-items: center; gap: 6px; }
+    .info-btn, .shuffle-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 42px;
+      height: 42px;
+      border: 1px solid transparent;
+      border-radius: 999px;
+      background: transparent;
+      cursor: pointer;
+      opacity: 0.62;
+      transition: opacity .3s var(--ease), border-color .3s var(--ease), transform .3s var(--ease);
+    }
+    .info-btn img { width: 23px; height: 23px; }
+    .shuffle-btn { display: none; }
+    html[data-view="home"] .shuffle-btn { display: inline-flex; }
+    .shuffle-btn svg { width: 20px; height: 20px; }
+    .info-btn:hover, .shuffle-btn:hover { opacity: 1; border-color: var(--line); }
+    .info-btn[aria-expanded="true"] { opacity: 1; border-color: var(--line); }
+
+    main { display: block; }
+    .surface { padding: clamp(22px, 4vw, 52px) clamp(16px, 4vw, 44px) 128px; }
+
+    /* =========================================================
+       WebGL layer — fixed, transparent, click-through.
+       Sits above paper + grain, below header/switcher. curtains
+       draws each HOME cover plane exactly over its <img>; the
+       <img>s always remain in the DOM behind the canvas so any
+       failure/context-loss degrades to the plain masonry.
+       ========================================================= */
+    #curtains-canvas { position: fixed; inset: 0; z-index: 2; pointer-events: none; }
+    #curtains-canvas canvas { display: block; }
+    /* during a Flip reshuffle the canvas hides so the plain <img>s animate; snaps back after */
+    html.curtains-reshuffling #curtains-canvas { visibility: hidden; }
+    /* off-home the canvas retains its last (home) frame — hide it so it never overlays album/info */
+    html:not(.curtains-on) #curtains-canvas { visibility: hidden; }
+
+    /* ---- HOME : column masonry (Pinterest), covers NEVER cropped ---- */
+    .home-wrap { max-width: var(--maxw); margin: 0 auto; }
+    .masonry {
+      --mcol-gap: 11.52px;                 /* home image spacing */
+      position: relative;                 /* anchor for Flip's absolute phase */
+      display: flex;
+      align-items: flex-start;
+      gap: var(--mcol-gap, 8px);
+    }
+    .mcol {
+      flex: 1 1 0;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: var(--mcol-gap, 8px);
+    }
+    /* will-change (a stacking context) only in the non-WebGL path, where the
+       scrubbed per-column parallax needs it. In WebGL mode the columns must NOT
+       be stacking contexts, so the numeric badge floats above the fixed canvas. */
+    html:not(.curtains-on) .mcol { will-change: transform; }
+    .print {
+      position: relative;
+      display: block;
+      width: 100%;
+      border-radius: 3px;
+      overflow: hidden;
+      background: var(--paper-deep);
+      box-shadow: var(--shadow);
+      cursor: pointer;
+      text-decoration: none;
+      -webkit-tap-highlight-color: transparent;
+      transition: box-shadow .5s var(--ease), filter .4s var(--ease);
+    }
+    /* the cover: full frame, true aspect — no object-fit, no crop */
+    .print .ph-base {
+      display: block;
+      width: 100%;
+      height: auto;
+      border-radius: inherit;
+    }
+    /* WebGL live: hide the DOM cover so a static (un-wobbled) copy never shows
+       behind the animating plane (curtains samples the bitmap, not CSS, so the
+       texture is unaffected). The no-WebGL fallback (no .curtains-on) shows it. */
+    html.curtains-on .print .ph-base { opacity: 0; }
+    /* hover live-peek (non-WebGL fallback only; the cover underneath is never cropped) */
+    .print .peek {
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      opacity: 0;
+      pointer-events: none;
+      z-index: 1;
+      transition: opacity .45s var(--ease);
+    }
+    .print .peek .pk {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      opacity: 0;
+      border-radius: inherit;
+      transition: opacity .6s var(--ease);
+    }
+    .print .idx {
+      position: absolute;
+      z-index: 5;                         /* above #curtains-canvas (z-index:2) */
+      left: 9px;
+      bottom: 9px;
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.14em;
+      color: var(--paper);
+      background: rgba(23, 19, 15, 0.44);
+      -webkit-backdrop-filter: blur(4px);
+      backdrop-filter: blur(4px);
+      padding: 3px 8px;
+      border-radius: 999px;
+      opacity: 0;
+      transform: translateY(5px);
+      transition: opacity .35s var(--ease), transform .35s var(--ease);
+      pointer-events: none;
+    }
+    .print:hover, .print:focus-visible, .print.is-hover {
+      box-shadow: var(--shadow-lift);
+    }
+    /* z-index on hover would make the hovered DOM <img> paint above the canvas
+       (hiding the shader) — so raise it ONLY in the non-WebGL path. */
+    html:not(.curtains-on) .print:hover,
+    html:not(.curtains-on) .print:focus-visible,
+    html:not(.curtains-on) .print.is-hover { z-index: 5; }
+    .print:hover .idx, .print:focus-visible .idx, .print.is-hover .idx {
+      opacity: 1;
+      transform: none;
+    }
+    /* spotlight: gently recede the covers you are not pointing at.
+       Non-WebGL only (a filter is a stacking context; WebGL dims siblings
+       inside the shader via uDim instead). */
+    html:not(.curtains-on) .masonry.is-focusing .print:not(.is-hover) { filter: brightness(0.9) saturate(0.92); }
+
+    /* ---- ALBUM ---- */
+    .album-meta {
+      max-width: var(--maxw);
+      margin: 0 auto clamp(18px, 3vw, 30px);
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      font-family: var(--mono);
+      font-size: 12px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--ink-2);
+    }
+    .meta-back { text-decoration: none; color: var(--ink-2); transition: color .25s var(--ease); }
+    .meta-back:hover { color: var(--ink); }
+    .meta-dot { color: var(--ink-2); opacity: 0.55; letter-spacing: 0.3em; }
+
+    .album-grid {
+      max-width: var(--maxw);
+      margin: 0 auto;
+      column-count: 3;
+      column-gap: var(--gap);
+    }
+    @media (max-width: 900px) { .album-grid { column-count: 2; } }
+    @media (max-width: 560px) { .album-grid { column-count: 1; } }
+
+    .frame {
+      position: relative;
+      display: block;
+      width: 100%;
+      margin: 0 0 var(--gap);
+      padding: 6px;
+      border: 0;
+      border-radius: 2px;
+      background: var(--print);
+      box-shadow: var(--shadow);
+      cursor: zoom-in;
+      break-inside: avoid;
+      text-align: left;
+      -webkit-appearance: none;
+      appearance: none;
+      transition: transform .5s var(--ease), box-shadow .5s var(--ease);
+    }
+    .frame img { width: 100%; height: auto; border-radius: 1px; }
+    .frame .fnum {
+      position: absolute;
+      right: 10px;
+      bottom: 10px;
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      color: var(--ink-2);
+      background: rgba(244, 241, 234, 0.86);
+      padding: 2px 6px;
+      border-radius: 3px;
+      opacity: 0;
+      transition: opacity .35s var(--ease);
+      pointer-events: none;
+    }
+    .frame:hover, .frame:focus-visible {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-lift);
+      z-index: 3;
+    }
+    .frame:hover .fnum, .frame:focus-visible .fnum { opacity: 1; }
+
+    /* occasional full-width "pinned" plate for rhythm */
+    .frame.pinned {
+      column-span: all;
+      width: -moz-max-content;
+      width: max-content;
+      max-width: 100%;
+      margin: calc(var(--gap) * 1.35) auto;
+    }
+    .frame.pinned img { max-height: min(78vh, 660px); width: auto; max-width: 100%; }
+
+    /* =========================================================
+       INFO — editorial, asymmetric. Refined: a quiet colophon,
+       the statement set at a modest lead-paragraph scale (NOT a hero).
+       ========================================================= */
+    .info-editorial {
+      max-width: var(--maxw);
+      margin: clamp(14px, 5vh, 60px) auto 0;
+      padding: 0 clamp(2px, 1.5vw, 18px);
+    }
+    .info-eyebrow {
+      font-family: var(--mono);
+      font-size: 11.5px;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      color: var(--ink-2);
+      margin: 0 0 clamp(14px, 3vh, 24px);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .info-eyebrow .rule { flex: 0 0 44px; height: 1px; background: var(--accent); opacity: .7; }
+    /* the statement — lead-paragraph scale, unemphatic weight, comfortable measure */
+    .info-hero {
+      font-family: var(--sans);
+      font-weight: 400;
+      font-size: clamp(1.05rem, 1.8vw, 1.5rem);
+      line-height: 1.55;
+      letter-spacing: 0;
+      max-width: 46ch;
+      margin: 0 0 clamp(30px, 6vh, 58px);
+      color: var(--ink);
+      text-wrap: balance;
+    }
+    .info-hero .dash { color: var(--ink-2); font-weight: 400; }
+    .info-hero .accent {
+      font-family: var(--hand);
+      font-weight: 600;
+      color: var(--accent);
+      font-size: 1.14em;      /* understated Caveat accent — reads as large text for AA */
+      letter-spacing: 0;
+      padding: 0 0.04em;
+    }
+
+    .info-detail {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: clamp(30px, 5vw, 90px);
+      align-items: start;
+      max-width: 62rem;
+    }
+    /* asymmetry: contact leads top-left; camera drops to a lower right rail */
+    .info-block.camera  { margin-top: clamp(18px, 5vh, 64px); }
+    .info-k {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.24em;
+      text-transform: uppercase;
+      color: var(--ink-2);
+      margin: 0 0 0.85rem;
+      display: flex;
+      align-items: center;
+      gap: 0.7rem;
+    }
+    .info-k::before { content: ''; width: 20px; height: 1px; background: var(--accent); opacity: 0.7; }
+    .info-v {
+      font-family: var(--sans);
+      font-size: clamp(1.02rem, 1.35vw, 1.22rem);
+      line-height: 1.5;
+      color: var(--ink);
+      margin: 0;
+      max-width: 30ch;
+    }
+    .info-v a {
+      color: var(--ink);
+      text-decoration: underline;
+      text-decoration-thickness: 1px;
+      text-underline-offset: 4px;
+      text-decoration-color: rgba(38, 34, 29, 0.35);
+      transition: text-decoration-color .25s var(--ease);
+    }
+    .info-v a:hover { text-decoration-color: var(--accent); }
+    .info-v .stack { display: block; }
+    .info-v .stack + .stack { margin-top: 0.4rem; }
+    @media (max-width: 720px) {
+      .info-detail { grid-template-columns: 1fr; gap: clamp(28px, 6vh, 44px); }
+      .info-block.camera { margin-top: 0; }
+      .info-hero { max-width: 38ch; }
+    }
+
+    /* ---- prototype switcher (dev control) ---- */
+    .proto {
+      position: fixed;
+      left: 50%;
+      bottom: 18px;
+      transform: translateX(-50%);
+      z-index: 40;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 5px 6px 5px 12px;
+      border: 1px dashed rgba(38, 34, 29, 0.28);
+      border-radius: 999px;
+      background: rgba(244, 241, 234, 0.66);
+      -webkit-backdrop-filter: blur(9px);
+      backdrop-filter: blur(9px);
+      font-family: var(--mono);
+      opacity: 0.5;
+      transition: opacity .3s var(--ease);
+      box-shadow: var(--shadow);
+    }
+    .proto:hover, .proto:focus-within { opacity: 0.97; }
+    .proto-label {
+      font-size: 10px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--ink-2);
+      white-space: nowrap;
+    }
+    .proto-sep { width: 1px; height: 15px; background: rgba(38, 34, 29, 0.22); margin: 0 4px; }
+    .proto button {
+      font-family: var(--mono);
+      font-size: 10.5px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--ink-2);
+      background: transparent;
+      border: 0;
+      border-radius: 999px;
+      padding: 5px 10px;
+      cursor: pointer;
+      transition: color .2s var(--ease), background .2s var(--ease);
+    }
+    .proto button:hover { color: var(--ink); }
+    .proto button.is-active {
+      color: var(--paper);
+      background: var(--ink);
+    }
+
+    /* ---- LIGHTBOX ---- */
+    #lightbox { position: fixed; inset: 0; z-index: 9999; display: none; }
+    #lightbox.open { display: grid; place-items: center; }
+    html.lb-open { overflow: hidden; }
+    .lb-backdrop { position: absolute; inset: 0; background: var(--backdrop); }
+    .lb-stage {
+      position: relative;
+      width: min(96vw, 1280px);
+      height: 100%;
+      display: grid;
+      place-items: center;
+    }
+    .lb-figure { margin: 0; max-width: min(92vw, 1120px); }
+    .lb-figure img {
+      display: block;
+      max-width: 100%;
+      max-height: 84vh;
+      width: auto;
+      height: auto;
+      padding: 8px;
+      background: var(--print);
+      border-radius: 2px;
+      box-shadow: var(--shadow-lift);
+    }
+    .lb-nav, .lb-close {
+      position: absolute;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--paper);
+      background: rgba(244, 241, 234, 0.08);
+      border: 1px solid rgba(244, 241, 234, 0.24);
+      border-radius: 999px;
+      cursor: pointer;
+      -webkit-backdrop-filter: blur(6px);
+      backdrop-filter: blur(6px);
+      transition: background .25s var(--ease), transform .25s var(--ease);
+    }
+    .lb-nav { top: 50%; transform: translateY(-50%); width: 48px; height: 48px; }
+    .lb-nav:hover { background: rgba(244, 241, 234, 0.18); }
+    .lb-nav svg { width: 20px; height: 20px; }
+    .lb-prev { left: clamp(8px, 2vw, 30px); }
+    .lb-next { right: clamp(8px, 2vw, 30px); }
+    .lb-close { top: clamp(12px, 2.4vh, 26px); right: clamp(12px, 2vw, 30px); width: 44px; height: 44px; }
+    .lb-close:hover { background: rgba(244, 241, 234, 0.18); }
+    .lb-close svg { width: 17px; height: 17px; }
+    .lb-counter {
+      position: absolute;
+      bottom: clamp(14px, 3.2vh, 32px);
+      left: 50%;
+      transform: translateX(-50%);
+      font-family: var(--mono);
+      font-size: 13px;
+      letter-spacing: 0.16em;
+      color: rgba(244, 241, 234, 0.82);
+    }
+
+    /* ---- mobile ---- */
+    @media (max-width: 560px) {
+      .masonry { --mcol-gap: 8.64px; }
+      /* touch: covers read their index as a tap affordance */
+      .print .idx { opacity: 1; transform: none; }
+      .proto { bottom: 12px; padding: 4px 5px 4px 6px; gap: 2px; }
+      .proto-label, .proto-sep { display: none; }
+      .proto button { padding: 6px 11px; }
+      .surface { padding-left: 20px; padding-right: 20px; }
+      .album-meta { font-size: 10.5px; letter-spacing: 0.05em; }
+      .frame.pinned { width: 100%; max-width: 100%; margin: 0 0 var(--gap); }
+      .frame.pinned img { width: 100%; max-height: none; }
+    }
+
+    /* ---- reduced motion: content always visible, no non-essential motion ---- */
+    @media (prefers-reduced-motion: reduce) {
+      .print, .frame, .info-btn, .shuffle-btn, .wordmark { transition: none; }
+      .mcol { transform: none !important; }
+      .print .peek { display: none; }
+      .wordmark:hover span, #orbit-overlay .ob-wordmark:hover span { animation: none; }
+    }
+  
+
+    /* =========================================================
+       EASTER EGG — long-press the mark. Kept a secret: no visible
+       hint by default. A quick tap keeps the mark's normal behaviour
+       (navigate to info); a ~900ms hold launches the hidden orbit.
+       ========================================================= */
+    .info-btn { position: relative; -webkit-touch-callout: none; user-select: none; touch-action: manipulation; }
+    .mark-hold {
+      position: absolute; inset: -3px; pointer-events: none;
+      opacity: 0; transition: opacity .2s var(--ease);
+    }
+    .info-btn.holding .mark-hold { opacity: 1; }
+    .mark-hold svg { width: 100%; height: 100%; display: block; transform: rotate(-90deg); overflow: visible; }
+    .mark-hold circle { fill: none; stroke-width: 2; }
+    .mark-hold .mh-track { stroke: rgba(38, 34, 29, 0.10); }
+    .mark-hold .mh-fill {
+      stroke: var(--accent); stroke-linecap: round;
+      stroke-dasharray: 119.4; stroke-dashoffset: 119.4;   /* 2πr, r=19 → empty */
+      transition: stroke-dashoffset .28s var(--ease);       /* quick reset on cancel */
+    }
+    .info-btn.holding .mh-fill { stroke-dashoffset: 0; transition: stroke-dashoffset 750ms linear; }
+    .info-btn img { transition: transform .5s var(--ease); }
+    .info-btn:hover img { transform: rotate(35deg); }        /* same playful turn as the orbit info icon */
+    .info-btn.holding img { transform: scale(0.86); }       /* gentle "press" tension (overrides hover) */
+
+    @keyframes mark-shake {
+      0%,100% { transform: translateX(0); }
+      15% { transform: translateX(-3px); } 30% { transform: translateX(3px); }
+      45% { transform: translateX(-3px); } 60% { transform: translateX(2px); }
+      75% { transform: translateX(-2px); } 90% { transform: translateX(1px); }
+    }
+    .info-btn.nope { animation: mark-shake .45s var(--ease); }
+    .info-btn { padding: 0; }
+
+    /* =========================================================
+       SITE INFO popup (replaces the old ?view=info surface).
+       DESKTOP: frosted top-right card anchored under the mark.
+       MOBILE (<=560px / coarse): bottom sheet + scrim + drag handle.
+       ========================================================= */
+    #site-info-scrim {
+      position: fixed; inset: 0; z-index: 59;
+      background: rgba(23, 19, 15, 0.44);
+      -webkit-backdrop-filter: blur(1px); backdrop-filter: blur(1px);
+      opacity: 0; visibility: hidden;
+      transition: opacity .3s var(--ease), visibility .3s var(--ease);
+    }
+    #site-info-scrim.open { opacity: 1; visibility: visible; }
+
+    #site-info {
+      position: fixed;
+      top: clamp(60px, 7vw, 74px);
+      right: clamp(14px, 3vw, 28px);
+      z-index: 60;
+      width: min(320px, calc(100vw - 28px));
+      background: rgba(246, 242, 234, 0.9);
+      -webkit-backdrop-filter: blur(14px) saturate(1.1); backdrop-filter: blur(14px) saturate(1.1);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      box-shadow: var(--shadow-lift);
+      padding: 18px 20px 16px;
+      opacity: 0; visibility: hidden;
+      transform: translateY(-8px) scale(.98);
+      transition: opacity .32s var(--ease), transform .32s var(--ease), visibility .32s var(--ease);
+    }
+    #site-info.open { opacity: 1; visibility: visible; transform: none; }
+    #site-info .si-handle { display: none; }
+    #site-info .row { padding: 9px 0; border-top: 1px solid var(--line); }
+    #site-info .row:first-of-type { border-top: none; padding-top: 2px; }
+    #site-info .lbl {
+      font-family: var(--mono); font-size: 10px; letter-spacing: .16em;
+      text-transform: uppercase; color: var(--accent); display: block; margin-bottom: 5px;
+    }
+    #site-info .val { font-family: var(--sans); font-size: 14.5px; line-height: 1.5; color: var(--ink); }
+    #site-info .val a {
+      color: var(--ink); text-decoration: none; border-bottom: 1px solid rgba(38, 34, 29, 0.28);
+      transition: border-color .25s var(--ease), color .25s var(--ease);
+    }
+    #site-info .val a:hover { border-color: var(--accent); color: var(--accent); }
+    #site-info .ctx { color: var(--ink-2); }
+
+    html.info-open, html.info-open body { overflow: hidden; }
+
+    @media (max-width: 560px), (pointer: coarse) {
+      #site-info {
+        top: auto; bottom: 0; left: 0; right: 0;
+        width: 100%; max-width: none;
+        border-radius: 18px 18px 0 0;
+        padding: 8px clamp(18px, 6vw, 26px) calc(24px + env(safe-area-inset-bottom, 0px));
+        box-shadow: 0 -18px 44px -20px rgba(46, 38, 28, 0.5);
+        transform: translateY(100%);
+        transition: opacity .34s var(--ease), transform .34s var(--ease), visibility .34s var(--ease);
+      }
+      #site-info.open { transform: translateY(0); }
+      #site-info .si-handle {
+        display: block; width: 40px; height: 4px; border-radius: 999px;
+        background: rgba(38, 34, 29, 0.22); margin: 8px auto 14px;
+      }
+      #site-info .row { padding: 11px 0; }
+      #site-info .val { font-size: 15.5px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      #site-info { transform: none !important; transition: opacity .2s linear, visibility .2s linear; }
+      #site-info.open { transform: none !important; }
+      #site-info-scrim { transition: opacity .2s linear, visibility .2s linear; }
+    }
+
+    /* while orbit is open: lock the page, quiet the main chrome (one wordmark rule) */
+    html.orbit-open, html.orbit-open body { overflow: hidden; }
+    html.orbit-open header.chrome, html.orbit-open .proto {
+      opacity: 0 !important; pointer-events: none !important;
+      transition: opacity .4s var(--ease);
+    }
+
+    /* =========================================================
+       ORBIT OVERLAY — fully scoped under #orbit-overlay so it never
+       clobbers the main site's tokens/chrome. Full-screen, opaque,
+       its own stacking context (isolate). Hidden until triggered.
+       ========================================================= */
+    #orbit-overlay {
+      position: fixed; inset: 0; z-index: 5000;
+      isolation: isolate; overflow: hidden;
+      background: #F1ECE1; color: #26221D;
+      opacity: 0; transition: opacity .6s var(--ease);
+      -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+      /* orbit's own palette + easing, scoped to this subtree */
+      --paper: #F1ECE1; --ink: #26221D; --ink-2: #6b6155; --accent: #9C6B3F;
+      --sans: 'Bricolage Grotesque', system-ui, -apple-system, 'Segoe UI', sans-serif;
+      --mono: 'Space Mono', ui-monospace, Menlo, monospace;
+      --hand: 'Caveat', 'Segoe Script', cursive;
+      --ease: cubic-bezier(.22, .7, .16, 1);
+      font-family: var(--sans);
+    }
+    #orbit-overlay.visible { opacity: 1; }
+    #orbit-overlay a { color: inherit; }
+    #orbit-overlay button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
+    #orbit-overlay :focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; border-radius: 2px; }
+
+    #orbit-overlay #ob-stage { position: absolute; inset: 0; z-index: 1; }
+    #orbit-overlay #ob-canvas {
+      display: block; width: 100%; height: 100%;
+      touch-action: none; cursor: grab;
+      opacity: 0; transition: opacity 1.4s var(--ease);
+    }
+    #orbit-overlay #ob-canvas.ready { opacity: 1; }
+    #orbit-overlay #ob-canvas.dragging { cursor: grabbing; }
+    #orbit-overlay #ob-canvas.pointing { cursor: pointer; }
+
+    #orbit-overlay #ob-vignette {
+      position: absolute; inset: 0; z-index: 3; pointer-events: none;
+      background: radial-gradient(125% 105% at 50% 44%, rgba(241,236,225,0) 52%, rgba(46,38,28,0.16) 100%);
+      mix-blend-mode: multiply;
+    }
+    #orbit-overlay #ob-grain {
+      position: absolute; inset: 0; z-index: 4; pointer-events: none; opacity: 0.028;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E");
+      background-size: 200px 200px;
+    }
+
+    #orbit-overlay #ob-chrome { position: absolute; inset: 0; z-index: 6; pointer-events: none; opacity: 0; transition: opacity 1.2s var(--ease) .3s; }
+    #orbit-overlay #ob-chrome.ready { opacity: 1; }
+    #orbit-overlay .ob-wordmark {
+      position: absolute; top: clamp(16px, 2.4vw, 30px); left: clamp(18px, 2.6vw, 34px);
+      pointer-events: auto; font-family: var(--hand); font-size: clamp(30px, 4vw, 46px);
+      line-height: 1; color: var(--paper); text-decoration: none; letter-spacing: .3px;
+      user-select: none; text-shadow: 0 1px 3px rgba(0,0,0,.35);
+    }
+    #orbit-overlay #ob-info-toggle {
+      position: absolute; top: clamp(14px, 2.2vw, 28px); right: clamp(16px, 2.4vw, 30px);
+      pointer-events: auto; width: 40px; height: 40px; padding: 6px; display: grid; place-items: center;
+      border-radius: 50%; transition: transform .5s var(--ease), background .4s var(--ease);
+    }
+    #orbit-overlay #ob-info-toggle:hover { background: rgba(38,34,29,.06); transform: rotate(35deg); }
+    #orbit-overlay #ob-info-toggle img { width: 26px; height: 26px; display: block; opacity: .82; filter: brightness(0) invert(1); }
+
+    #orbit-overlay #ob-info {
+      position: absolute; top: clamp(58px, 6.4vw, 78px); right: clamp(16px, 2.4vw, 30px); z-index: 7;
+      width: min(300px, calc(100vw - 32px)); pointer-events: auto;
+      background: rgba(246,242,234,0.86);
+      -webkit-backdrop-filter: blur(14px) saturate(1.1); backdrop-filter: blur(14px) saturate(1.1);
+      border: 1px solid rgba(38,34,29,.10); border-radius: 14px; box-shadow: 0 18px 44px -20px rgba(46,38,28,.5);
+      padding: 20px 20px 18px; opacity: 0; transform: translateY(-8px) scale(.98);
+      transition: opacity .42s var(--ease), transform .42s var(--ease); visibility: hidden;
+    }
+    #orbit-overlay #ob-info.open { opacity: 1; transform: none; visibility: visible; }
+    #orbit-overlay #ob-info .row { padding: 9px 0; border-top: 1px solid rgba(38,34,29,.08); }
+    #orbit-overlay #ob-info .row:first-of-type { border-top: none; padding-top: 2px; }
+    #orbit-overlay #ob-info .lbl { font-family: var(--mono); font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: var(--accent); display: block; margin-bottom: 5px; }
+    #orbit-overlay #ob-info .val { font-size: 14.5px; line-height: 1.5; color: var(--ink); font-weight: 400; }
+    #orbit-overlay #ob-info .val a { color: var(--ink); text-decoration: none; border-bottom: 1px solid rgba(38,34,29,.28); }
+    #orbit-overlay #ob-info .val a:hover { border-color: var(--accent); color: var(--accent); }
+    #orbit-overlay #ob-info .ctx { color: var(--ink-2); }
+
+    #orbit-overlay #ob-hint {
+      position: absolute; left: 50%; bottom: clamp(26px, 4vh, 44px); z-index: 6; transform: translateX(-50%);
+      font-family: var(--mono); font-size: 11px; letter-spacing: .18em; text-transform: lowercase;
+      color: var(--ink-2); pointer-events: none; white-space: nowrap; opacity: 0; transition: opacity 1s var(--ease);
+    }
+    #orbit-overlay #ob-hint.show { opacity: .68; }
+    #orbit-overlay #ob-hint.hide { opacity: 0; }
+
+    #orbit-overlay #ob-focusUI { position: absolute; inset: 0; z-index: 6; pointer-events: none; opacity: 0; transition: opacity .5s var(--ease); }
+    #orbit-overlay #ob-focusUI.active { opacity: 1; }
+    #orbit-overlay .fnav {
+      position: absolute; top: 50%; transform: translateY(-50%); width: 52px; height: 52px; border-radius: 50%;
+      pointer-events: auto; display: grid; place-items: center; color: var(--ink);
+      background: rgba(246,242,234,0.55); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+      border: 1px solid rgba(38,34,29,.10); font-size: 20px; line-height: 1;
+      transition: background .35s var(--ease), transform .35s var(--ease), opacity .35s;
+    }
+    #orbit-overlay .fnav:hover { background: rgba(246,242,234,.85); }
+    #orbit-overlay #ob-fprev { left: clamp(14px, 3vw, 40px); }
+    #orbit-overlay #ob-fnext { right: clamp(14px, 3vw, 40px); }
+    #orbit-overlay #ob-fprev:active { transform: translateY(-50%) translateX(-3px); }
+    #orbit-overlay #ob-fnext:active { transform: translateY(-50%) translateX(3px); }
+    #orbit-overlay #ob-fclose {
+      position: absolute; top: clamp(58px, 6.4vw, 78px); left: 50%; transform: translateX(-50%); pointer-events: auto;
+      font-family: var(--mono); font-size: 10px; letter-spacing: .2em; text-transform: uppercase; color: var(--ink-2);
+      padding: 8px 14px; border-radius: 20px; background: rgba(246,242,234,0.5);
+      -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); border: 1px solid rgba(38,34,29,.08);
+    }
+    #orbit-overlay #ob-fclose:hover { color: var(--ink); }
+    #orbit-overlay #ob-fcount {
+      position: absolute; bottom: clamp(26px, 4vh, 46px); left: 50%; transform: translateX(-50%);
+      font-family: var(--mono); font-size: 12px; letter-spacing: .22em; color: var(--ink-2); pointer-events: none;
+    }
+    #orbit-overlay #ob-fcount b { color: var(--ink); font-weight: 700; }
+
+    #orbit-overlay #ob-loader {
+      position: absolute; inset: 0; z-index: 20; display: grid; place-items: center;
+      background: var(--paper); transition: opacity .9s var(--ease);
+    }
+    #orbit-overlay #ob-loader.done { opacity: 0; pointer-events: none; }
+    #orbit-overlay .load-inner { display: grid; place-items: center; gap: 20px; transform: translateY(-4px); }
+    #orbit-overlay .load-mark { width: 40px; height: 40px; opacity: .8; animation: ob-spin 3.4s linear infinite; }
+    @keyframes ob-spin { to { transform: rotate(360deg); } }
+    #orbit-overlay .load-bar { width: 148px; height: 2px; background: rgba(38,34,29,.12); border-radius: 2px; overflow: hidden; }
+    #orbit-overlay .load-bar i { display: block; height: 100%; width: 0%; background: var(--accent); transition: width .3s var(--ease); }
+    #orbit-overlay .load-word { font-family: var(--mono); font-size: 10px; letter-spacing: .26em; text-transform: uppercase; color: var(--ink-2); }
+
+    /* the ported scene is dark — make the loader dark too so launch doesn't flash a light screen */
+    #orbit-overlay #ob-loader { background: #141210; }
+    #orbit-overlay .load-word { color: rgba(246,242,234,.5); }
+    #orbit-overlay .load-bar { background: rgba(246,242,234,.14); }
+    #orbit-overlay .load-mark { filter: invert(1) brightness(1.25); }
+
+    /* reset control (ported from orbit.html #recenter; lives inside #ob-chrome to inherit its fade-in) */
+    #orbit-overlay #ob-reset {
+      position: absolute; left: clamp(16px, 2.6vw, 30px); bottom: clamp(20px, 3.4vh, 34px);
+      z-index: 7; pointer-events: auto;
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 40px; height: 40px; padding: 0; border-radius: 50%;
+      color: rgba(246,242,234,0.5);
+      background: rgba(246,242,234,0.06);
+      -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+      border: 1px solid rgba(246,242,234,0.10);
+      transition: color .3s var(--ease), background .3s var(--ease), opacity .4s var(--ease);
+    }
+    #orbit-overlay #ob-reset:hover { color: rgba(246,242,234,0.92); background: rgba(246,242,234,0.16); }
+    #orbit-overlay #ob-reset:active { transform: translateY(1px); }
+    #orbit-overlay #ob-reset svg { display: block; opacity: .82; }
+    #orbit-overlay.in-focus #ob-reset { opacity: 0; pointer-events: none; }
+    /* drop backdrop-filter while dragging (re-blurring it every frame is a top cause of drag jank) */
+    #orbit-overlay.dragging #ob-reset,
+    #orbit-overlay.dragging .fnav,
+    #orbit-overlay.dragging #ob-fclose,
+    #orbit-overlay.dragging #ob-info { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+
+    @media (prefers-reduced-motion: reduce) {
+      #orbit-overlay { transition-duration: .3s; }
+      #orbit-overlay .load-mark { animation: none; }
+      #orbit-overlay #ob-canvas, #orbit-overlay #ob-chrome, #orbit-overlay #ob-info, #orbit-overlay #ob-hint { transition-duration: .3s; }
+      .info-btn.nope { animation: none; }
+    }
+  
