@@ -180,14 +180,16 @@ python3 - <<'PY'
 import re
 html = open('mockups/main.html').read()
 
-# --- CSS ---
-css = re.search(r'<style>(.*?)</style>', html, re.S).group(1)
+# --- CSS (main.html has TWO <style> blocks — keep BOTH; the 2nd is the info-popup + orbit-overlay CSS) ---
+css = "\n".join(re.findall(r'<style>(.*?)</style>', html, re.S))
 css = css.replace('../assets/', '/assets/').replace('../images/', '/images/')
 open('app.css','w').write("@import '/vendor/fonts/fonts.css';\n" + css)
 
 # --- scripts: the plain app script + the orbit module ---
+# The plain app script legitimately CALLS window.orbitApp.* (read refs); only the module ASSIGNS it.
+# Disambiguate by type="module"; the plain app script is the non-module inline script containing restoreMain.
 scripts = re.findall(r'<script(?![^>]*\bsrc=)([^>]*)>(.*?)</script>', html, re.S)
-plain  = [b for a,b in scripts if 'type="module"' not in a and 'window.orbitApp' not in b and 'restoreMain' in b]
+plain  = [b for a,b in scripts if 'type="module"' not in a and 'restoreMain' in b]
 module = [b for a,b in scripts if 'type="module"' in a and 'window.orbitApp' in b]
 assert len(plain)==1 and len(module)==1, (len(plain), len(module))
 app = plain[0].replace('../images/', '/images/').replace('../assets/', '/assets/')
