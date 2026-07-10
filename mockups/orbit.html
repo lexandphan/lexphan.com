@@ -1,0 +1,1168 @@
+<!DOCTYPE html>
+<html lang="en" data-view="orbit">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover" />
+  <title>phanny — orbit (WebGL, mockup)</title>
+  <meta name="description" content="A small, ongoing archive of film photos — light, travel, and the in-between." />
+  <link rel="icon" type="image/svg+xml" href="../assets/phanny-favicon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,300..600&family=Caveat:wght@600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body {
+      margin: 0; height: 100%; width: 100%;
+      overflow: hidden;
+      background: #3E3A31;   /* dark, matching the orbit scene, so the canvas fade-in never bleeds light */
+      color: #26221D;
+      overscroll-behavior: none;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+    :root {
+      --paper:  #F1ECE1;
+      --ink:    #26221D;
+      --ink-2:  #6b6155;
+      --accent: #9C6B3F;
+      --sans: 'Bricolage Grotesque', system-ui, -apple-system, 'Segoe UI', sans-serif;
+      --mono: 'Space Mono', ui-monospace, Menlo, monospace;
+      --hand: 'Caveat', 'Segoe Script', cursive;
+      --ease: cubic-bezier(.22,.7,.16,1);
+    }
+    body { font-family: var(--sans); }
+    a { color: inherit; }
+    button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
+    :focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; border-radius: 2px; }
+    [hidden] { display: none !important; }
+
+    /* ---------- stage / canvas ---------- */
+    #stage { position: fixed; inset: 0; z-index: 1; }
+    #scene-canvas {
+      display: block; width: 100%; height: 100%;
+      touch-action: none;
+      cursor: grab;
+      opacity: 0;
+      transition: opacity 1.4s var(--ease);
+    }
+    #scene-canvas.ready { opacity: 1; }
+    #scene-canvas.dragging { cursor: grabbing; }
+    #scene-canvas.pointing { cursor: pointer; }
+
+    /* soft cinematic vignette */
+    #vignette {
+      position: fixed; inset: 0; z-index: 3; pointer-events: none;
+      /* normal compositing (NO mix-blend-mode): a blend forces the animating canvas through a
+         per-frame full-screen readback -> laggy + jittery drag. Dark tint over the dark scene. */
+      background: radial-gradient(125% 105% at 50% 44%, rgba(8,6,4,0) 55%, rgba(8,6,4,0.55) 100%);
+    }
+    /* static film grain ~2.5% */
+    #grain {
+      position: fixed; inset: 0; z-index: 4; pointer-events: none;
+      opacity: 0.028;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E");
+      background-size: 200px 200px;
+    }
+
+    /* ---------- chrome ---------- */
+    #chrome {
+      position: fixed; inset: 0; z-index: 6; pointer-events: none;
+      opacity: 0; transition: opacity 1.2s var(--ease) .3s;
+    }
+    #chrome.ready { opacity: 1; }
+    .wordmark {
+      position: absolute; top: clamp(16px, 2.4vw, 30px); left: clamp(18px, 2.6vw, 34px);
+      pointer-events: auto;
+      font-family: var(--hand);
+      font-size: clamp(30px, 4vw, 46px);
+      line-height: 1; color: var(--paper);
+      text-decoration: none; letter-spacing: .3px;
+      user-select: none;
+      text-shadow: 0 1px 3px rgba(0,0,0,.35);
+    }
+    #info-toggle {
+      position: absolute; top: clamp(14px, 2.2vw, 28px); right: clamp(16px, 2.4vw, 30px);
+      pointer-events: auto;
+      width: 40px; height: 40px; padding: 6px;
+      display: grid; place-items: center;
+      border-radius: 50%;
+      transition: transform .5s var(--ease), background .4s var(--ease);
+    }
+    #info-toggle:hover { background: rgba(38,34,29,.06); transform: rotate(35deg); }
+    #info-toggle img { width: 26px; height: 26px; display: block; opacity: .82; filter: brightness(0) invert(1); }
+
+    /* ---------- info panel ---------- */
+    #info {
+      position: absolute; top: clamp(58px, 6.4vw, 78px); right: clamp(16px, 2.4vw, 30px);
+      z-index: 7;
+      width: min(300px, calc(100vw - 32px));
+      pointer-events: auto;
+      background: rgba(246,242,234,0.86);
+      -webkit-backdrop-filter: blur(14px) saturate(1.1);
+      backdrop-filter: blur(14px) saturate(1.1);
+      border: 1px solid rgba(38,34,29,.10);
+      border-radius: 14px;
+      box-shadow: 0 18px 44px -20px rgba(46,38,28,.5);
+      padding: 20px 20px 18px;
+      opacity: 0; transform: translateY(-8px) scale(.98);
+      transition: opacity .42s var(--ease), transform .42s var(--ease);
+      visibility: hidden;
+    }
+    #info.open { opacity: 1; transform: none; visibility: visible; }
+    #info .row { padding: 9px 0; border-top: 1px solid rgba(38,34,29,.08); }
+    #info .row:first-of-type { border-top: none; padding-top: 2px; }
+    #info .lbl {
+      font-family: var(--mono); font-size: 10px; letter-spacing: .16em;
+      text-transform: uppercase; color: var(--accent); display: block; margin-bottom: 5px;
+    }
+    #info .val { font-size: 14.5px; line-height: 1.5; color: var(--ink); font-weight: 400; }
+    #info .val a { color: var(--ink); text-decoration: none; border-bottom: 1px solid rgba(38,34,29,.28); }
+    #info .val a:hover { border-color: var(--accent); color: var(--accent); }
+    #info .ctx { color: var(--ink-2); }
+
+    /* ---------- first-load hint ---------- */
+    #hint {
+      position: fixed; left: 50%; bottom: clamp(26px, 4vh, 44px); z-index: 6;
+      transform: translateX(-50%);
+      font-family: var(--mono); font-size: 11px; letter-spacing: .18em; text-transform: lowercase;
+      color: var(--paper); pointer-events: none; white-space: nowrap;
+      opacity: 0; transition: opacity 1s var(--ease);
+    }
+    #hint.show { opacity: .68; }
+    #hint.hide { opacity: 0; }
+
+    /* ---------- focus UI ---------- */
+    #focusUI { position: fixed; inset: 0; z-index: 6; pointer-events: none;
+      opacity: 0; transition: opacity .5s var(--ease); }
+    #focusUI.active { opacity: 1; }
+    .fnav {
+      position: absolute; top: 50%; transform: translateY(-50%);
+      width: 52px; height: 52px; border-radius: 50%;
+      pointer-events: auto;
+      display: grid; place-items: center;
+      color: var(--ink);
+      background: rgba(246,242,234,0.55);
+      -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+      border: 1px solid rgba(38,34,29,.10);
+      font-size: 20px; line-height: 1;
+      transition: background .35s var(--ease), transform .35s var(--ease), opacity .35s;
+    }
+    .fnav:hover { background: rgba(246,242,234,.85); }
+    #fprev { left: clamp(14px, 3vw, 40px); }
+    #fnext { right: clamp(14px, 3vw, 40px); }
+    #fprev:active { transform: translateY(-50%) translateX(-3px); }
+    #fnext:active { transform: translateY(-50%) translateX(3px); }
+    #fclose {
+      position: absolute; top: clamp(58px, 6.4vw, 78px); left: 50%; transform: translateX(-50%);
+      pointer-events: auto;
+      font-family: var(--mono); font-size: 10px; letter-spacing: .2em; text-transform: uppercase;
+      color: var(--ink-2); padding: 8px 14px; border-radius: 20px;
+      background: rgba(246,242,234,0.5);
+      -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+      border: 1px solid rgba(38,34,29,.08);
+    }
+    #fclose:hover { color: var(--ink); }
+    #fcount {
+      position: absolute; bottom: clamp(26px, 4vh, 46px); left: 50%; transform: translateX(-50%);
+      font-family: var(--mono); font-size: 12px; letter-spacing: .22em; color: rgba(237,229,214,0.7);
+      pointer-events: none;
+    }
+    #fcount b { color: var(--paper); font-weight: 700; }
+
+    /* ---------- recenter (always available in drift) ---------- */
+    #recenter {
+      position: absolute; left: clamp(16px, 2.6vw, 30px); bottom: clamp(20px, 3.4vh, 34px);
+      z-index: 7; pointer-events: auto;
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 9px 15px 9px 12px; border-radius: 22px;
+      font-family: var(--mono); font-size: 10px; letter-spacing: .2em; text-transform: uppercase;
+      color: var(--ink-2);
+      background: rgba(246,242,234,0.55);
+      -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+      border: 1px solid rgba(38,34,29,.10);
+      transition: color .3s var(--ease), background .3s var(--ease), opacity .4s var(--ease);
+    }
+    #recenter:hover { color: var(--ink); background: rgba(246,242,234,.85); }
+    /* while the pointer is down, drop ALL backdrop-filter blur over the moving canvas — re-blurring
+       it every frame is a top cause of drag jank. The frost stays for idle/hover. */
+    body.dragging #recenter, body.dragging .fnav, body.dragging #fclose, body.dragging #info {
+      -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
+    }
+    #recenter:active { transform: translateY(1px); }
+    #recenter svg { display: block; opacity: .82; }
+    body.in-focus #recenter { opacity: 0; pointer-events: none; }
+
+    /* ---------- loader ---------- */
+    #loader {
+      position: fixed; inset: 0; z-index: 20;
+      display: grid; place-items: center;
+      background: #3E3A31;
+      transition: opacity .9s var(--ease);
+    }
+    #loader.done { opacity: 0; pointer-events: none; }
+    .load-inner { display: grid; place-items: center; gap: 20px; transform: translateY(-4px); }
+    .load-mark { width: 40px; height: 40px; opacity: .8; animation: spin 3.4s linear infinite; filter: brightness(0) invert(1); }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .load-bar { width: 148px; height: 2px; background: rgba(38,34,29,.12); border-radius: 2px; overflow: hidden; }
+    .load-bar i { display: block; height: 100%; width: 0%; background: var(--accent); transition: width .3s var(--ease); }
+    .load-word { font-family: var(--mono); font-size: 10px; letter-spacing: .26em; text-transform: uppercase; color: rgba(237,229,214,0.6); }
+
+    /* ---------- fallback (no WebGL) ---------- */
+    #fallback { position: relative; z-index: 30; min-height: 100vh; background: var(--paper); color: var(--ink); }
+    html.is-fallback, html.is-fallback body { overflow: auto; height: auto; }
+    .fb-wrap { max-width: 1180px; margin: 0 auto; padding: clamp(20px,4vw,44px) clamp(16px,3vw,36px) 80px; }
+    .fb-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 26px; gap: 16px; }
+    .fb-head .wm { font-family: var(--hand); font-size: 44px; line-height: 1; color: var(--ink); }
+    .fb-note { color: var(--ink-2); font-size: 13px; max-width: 30ch; }
+    .fb-note .lbl { font-family: var(--mono); font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: var(--accent); }
+    .fb-note a { color: var(--ink); }
+    .fb-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+    .fb-grid figure { margin: 0; overflow: hidden; border-radius: 4px; background: #fff; box-shadow: 0 10px 26px -16px rgba(46,38,28,.4); aspect-ratio: 3/2; }
+    .fb-grid img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+    @media (prefers-reduced-motion: reduce) {
+      .load-mark { animation: none; }
+      #scene-canvas, #chrome, #info, #hint { transition-duration: .3s; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- classic script: fallback plumbing + init watchdog -->
+  <script>
+    window.__ORBIT = { ready: false };
+    window.__showFallback = function (reason) {
+      var fb = document.getElementById('fallback');
+      if (!fb || fb.__shown) return;
+      fb.__shown = true;
+      try { document.documentElement.classList.add('is-fallback'); } catch (e) {}
+      var ids = ['stage', 'loader', 'chrome', 'vignette', 'grain', 'hint', 'focusUI'];
+      for (var i = 0; i < ids.length; i++) { var el = document.getElementById(ids[i]); if (el) el.style.display = 'none'; }
+      fb.hidden = false;
+      if (window.console) console.warn('[orbit] fallback:', reason);
+    };
+    window.__ORBIT_WATCHDOG = setTimeout(function () {
+      if (!window.__ORBIT.ready) window.__showFallback('init-timeout');
+    }, 15000);
+  </script>
+
+  <main id="stage" aria-hidden="true">
+    <canvas id="scene-canvas"></canvas>
+  </main>
+
+  <div id="vignette"></div>
+  <div id="grain"></div>
+
+  <!-- chrome overlay -->
+  <div id="chrome">
+    <a class="wordmark" href="main.html" aria-label="phanny — back to the gallery" id="home-link">phanny</a>
+    <button id="info-toggle" aria-label="info" aria-expanded="false">
+      <img src="../assets/phanny-mark.svg" alt="" />
+    </button>
+
+    <aside id="info" role="dialog" aria-label="about phanny">
+      <div class="row">
+        <span class="lbl">contact</span>
+        <span class="val">
+          <a href="mailto:mail@lexphan.com">mail@lexphan.com</a><br>
+          <a href="https://instagram.com/phannypharkle" target="_blank" rel="noopener">@phannypharkle</a>
+        </span>
+      </div>
+      <div class="row">
+        <span class="lbl">camera</span>
+        <span class="val">mostly minolta tc-1</span>
+      </div>
+      <div class="row">
+        <span class="lbl">context</span>
+        <span class="val ctx">a small, ongoing archive of film photos — light, travel, and the in-between.</span>
+      </div>
+    </aside>
+
+    <button id="recenter" aria-label="reset — ease back to the whole cloud">
+      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M4 12a8 8 0 1 0 2.4-5.7" />
+        <path d="M4 4v4h4" />
+      </svg>
+      <span>reset</span>
+    </button>
+  </div>
+
+  <!-- focus mode UI -->
+  <div id="focusUI">
+    <button id="fclose">esc · close</button>
+    <button id="fprev" class="fnav" aria-label="previous frame">&#8249;</button>
+    <button id="fnext" class="fnav" aria-label="next frame">&#8250;</button>
+    <div id="fcount"><b>1</b> / 5</div>
+  </div>
+
+  <div id="hint">drag to look around &nbsp;·&nbsp; tap a photo</div>
+
+  <!-- loader -->
+  <div id="loader">
+    <div class="load-inner">
+      <img class="load-mark" src="../assets/phanny-mark.svg" alt="" />
+      <div class="load-bar"><i id="load-fill"></i></div>
+      <div class="load-word">developing</div>
+    </div>
+  </div>
+
+  <!-- graceful fallback -->
+  <section id="fallback" hidden>
+    <div class="fb-wrap">
+      <header class="fb-head">
+        <div class="wm">phanny</div>
+        <div class="fb-note">
+          <span class="lbl">context</span><br>
+          a small, ongoing archive of film photos — light, travel, and the in-between.<br>
+          <a href="mailto:mail@lexphan.com">mail@lexphan.com</a> ·
+          <a href="https://instagram.com/phannypharkle" target="_blank" rel="noopener">@phannypharkle</a>
+        </div>
+      </header>
+      <div class="fb-grid" id="fb-grid"></div>
+    </div>
+  </section>
+
+  <script type="importmap">
+  { "imports": { "three": "./vendor/three.module.js" } }
+  </script>
+
+  <script>
+    // Build fallback grid immediately so it's ready if WebGL is missing.
+    (function () {
+      var folders = ['tahoe','cdmxye','playa','pdt','splash','kyoto','tokyo','sapporo','pv','cdmx','oax','bali','japan'];
+      var g = document.getElementById('fb-grid');
+      if (!g) return;
+      var frag = document.createDocumentFragment();
+      folders.forEach(function (f) {
+        var fig = document.createElement('figure');
+        var img = document.createElement('img');
+        img.loading = 'lazy'; img.decoding = 'async';
+        img.src = '../images/' + f + '/1.webp'; img.alt = '';
+        fig.appendChild(img); frag.appendChild(fig);
+      });
+      g.appendChild(frag);
+    })();
+  </script>
+
+  <script type="module">
+    (async () => {
+      const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const HOVERABLE = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+      const SMALL = window.matchMedia('(max-width: 860px), (pointer: coarse)').matches;
+
+      function hasWebGL() {
+        try {
+          const c = document.createElement('canvas');
+          return !!(window.WebGLRenderingContext && (c.getContext('webgl2') || c.getContext('webgl')));
+        } catch (e) { return false; }
+      }
+      if (!hasWebGL()) { window.__showFallback('no-webgl'); return; }
+
+      let THREE;
+      try { THREE = await import('three'); }
+      catch (e) { console.error(e); window.__showFallback('three-load-failed'); return; }
+
+      try { run(THREE); }
+      catch (e) { console.error(e); window.__showFallback('init-error'); }
+
+      // ---------------------------------------------------------------
+      function run(THREE) {
+        // ---- config ----
+        const BG = 0x0C0A07;   // dark warm backdrop (renders ~#3E3A31 after sRGB output) — photos pop,
+                               // fog recedes far frames into shadow toward this same tone
+        const FOLDERS = ['tahoe','cdmxye','playa','pdt','splash','kyoto','tokyo','sapporo','pv','cdmx','oax','bali','japan'];
+        const FRAMES_PER = SMALL ? 5 : 9;    // ~65 mobile / ~117 desktop (phase 1; phase 2 streams all 471)
+        const MAX_EDGE = SMALL ? 640 : 1024; // trimmed for the higher frame count
+        const FOG_DENSITY = 0.0175;
+        const FOV = 56;
+
+        // ---- cloud + camera framing (enveloping field, not a corridor) ----
+        const center  = new THREE.Vector3(0, 0, 0);
+        const R        = 35;            // cloud radius (x/z)
+        const Y_FLAT   = 0.62;          // vertical squish -> slightly oblate, gives a sense of "level"
+        const MIN_SEP  = 9.5;           // minimum spacing between frames — larger now that frames are bigger
+        const IDLE_DELAY = 1.4;         // seconds of no input before the camera settles to center
+        const ORBIT_SPIN = REDUCED ? 0 : 0.040;   // cloud's primary revolution around you (rad/s)
+        const DRIFT_AMP  = REDUCED ? 0 : 0.45;     // in/out depth drift (fraction of radius) — background
+                                                    // frames travel deep and swing forward over time
+        const DRIFT_MIN_R = 8;                      // never let a drifting frame come closer than this to you
+        // home vantage: outside the cloud, looking in, framing the whole field (~1.9R away).
+        // Camera orientation is derived as yaw/pitch (Object3D.lookAt orients +Z toward the target,
+        // which is BACKWARDS for a camera — so we never copy a lookAt quaternion onto the camera).
+        const homePos  = new THREE.Vector3(0, R * 0.42, R * 1.85);
+        const _hf      = center.clone().sub(homePos).normalize();
+        const homeYaw  = Math.atan2(-_hf.x, -_hf.z);
+        const homePitch = Math.asin(THREE.MathUtils.clamp(_hf.y, -1, 1));
+
+        // ---- renderer ----
+        const canvas = document.getElementById('scene-canvas');
+        const stage = document.getElementById('stage');
+        const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false, powerPreference: 'high-performance' });
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+        renderer.setSize(window.innerWidth, window.innerHeight, false);
+        renderer.setClearColor(BG, 1);
+        if ('outputColorSpace' in renderer) renderer.outputColorSpace = THREE.SRGBColorSpace;
+        const maxAniso = renderer.capabilities.getMaxAnisotropy ? renderer.capabilities.getMaxAnisotropy() : 1;
+
+        // renderer exists -> init succeeded; stop the watchdog.
+        window.__ORBIT.ready = true;
+        clearTimeout(window.__ORBIT_WATCHDOG);
+
+        const scene = new THREE.Scene();
+        const fogColor = new THREE.Color(BG);
+        scene.background = fogColor;
+        scene.fog = new THREE.FogExp2(BG, FOG_DENSITY); // used by the dust points
+
+        const camera = new THREE.PerspectiveCamera(FOV, window.innerWidth / window.innerHeight, 0.1, 600);
+
+        // ---- shared shader uniforms (referenced by every plane) ----
+        const uFog = { value: fogColor };
+        const uFogDensity = { value: FOG_DENSITY };
+        const uBorder = { value: new THREE.Color(0xFBF7EE) };
+        const uLightDir = { value: new THREE.Vector3(-0.35, 0.55, 0.75).normalize() };
+
+        const VERT = `
+          varying vec2 vUv;
+          varying float vDepth;
+          varying vec3 vWorldN;
+          void main() {
+            vUv = uv;
+            vec4 mv = modelViewMatrix * vec4(position, 1.0);
+            vDepth = -mv.z;
+            vWorldN = normalize(mat3(modelMatrix) * vec3(0.0, 0.0, 1.0));
+            gl_Position = projectionMatrix * mv;
+          }
+        `;
+        const FRAG = `
+          precision highp float;
+          uniform sampler2D uMap;
+          uniform float uAspect;   // w / h
+          uniform float uHover;
+          uniform float uFocus;
+          uniform float uDim;
+          uniform float uReveal;
+          uniform float uOpacity;
+          uniform vec3  uFog;
+          uniform float uFogDensity;
+          uniform vec3  uBorder;
+          uniform vec3  uLightDir;
+          varying vec2 vUv;
+          varying float vDepth;
+          varying vec3 vWorldN;
+
+          void main() {
+            vec2 uv = vUv;
+
+            // rounded-rect shape (equal world-space corner radius)
+            vec2 pc = vec2((uv.x - 0.5) * uAspect, uv.y - 0.5);
+            vec2 halfExt = vec2(0.5 * uAspect, 0.5);
+            float r = 0.045;
+            vec2 q = abs(pc) - (halfExt - vec2(r));
+            float sdf = length(max(q, 0.0)) - r;
+            float shape = 1.0 - smoothstep(0.0, 0.006, sdf);
+            if (shape <= 0.001) discard;
+
+            // print border (uniform world thickness)
+            float bK = 0.03;
+            float bx = bK / uAspect;
+            vec2 lo = vec2(bx, bK);
+            vec2 hi = vec2(1.0 - bx, 1.0 - bK);
+            float inPhoto = step(lo.x, uv.x) * step(uv.x, hi.x) * step(lo.y, uv.y) * step(uv.y, hi.y);
+
+            vec3 col;
+            if (inPhoto > 0.5) {
+              vec2 puv = (uv - lo) / (hi - lo);
+              col = texture2D(uMap, puv).rgb;
+              // subtle inner edge shade for depth
+              float edge = min(min(puv.x, 1.0 - puv.x), min(puv.y, 1.0 - puv.y));
+              col *= 0.965 + 0.035 * smoothstep(0.0, 0.06, edge);
+            } else {
+              col = uBorder;
+            }
+
+            // hover / focus lift + gentle saturation swell
+            float lift = uHover * 0.13 + uFocus * 0.22;
+            col *= (1.0 + lift);
+            float lum = dot(col, vec3(0.299, 0.587, 0.114));
+            col = mix(vec3(lum), col, 1.0 + uHover * 0.10 + uFocus * 0.14);
+
+            // faux warm directional light for dimensionality
+            float nl = clamp(dot(normalize(vWorldN), uLightDir) * 0.5 + 0.5, 0.0, 1.0);
+            col *= 0.92 + 0.10 * nl;
+
+            // dim non-focused frames toward haze when a frame is in focus
+            col = mix(col, uFog, uDim * 0.62);
+
+            // exponential haze
+            float f = 1.0 - exp(-uFogDensity * uFogDensity * vDepth * vDepth);
+            f = clamp(f, 0.0, 1.0);
+            col = mix(col, uFog, f);
+
+            float alpha = shape * uReveal * uOpacity * (1.0 - f * 0.2);
+            gl_FragColor = vec4(col, alpha);
+          }
+        `;
+
+        // ---- deterministic layout (stable across loads) ----
+        function mulberry32(a) {
+          return function () {
+            a |= 0; a = (a + 0x6D2B79F5) | 0;
+            let t = Math.imul(a ^ (a >>> 15), 1 | a);
+            t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+            return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+          };
+        }
+        const rng = mulberry32(20260708);
+        const rand = (a, b) => a + (b - a) * rng();
+
+        const layout = []; // one entry per plane
+        const N_OCC = FOLDERS.length;
+        const GOLDEN = Math.PI * (3 - Math.sqrt(5));   // golden angle
+        // 1) seed each shoot as a loose pocket; pockets spread through the whole volume.
+        for (let i = 0; i < N_OCC; i++) {
+          // even angular coverage (Fibonacci sphere) so every direction has a pocket;
+          // varied radius so pockets sit at different depths -> dense pockets with quiet gaps.
+          const yv = 1 - ((i + 0.5) / N_OCC) * 2;        // 1 .. -1
+          const rr = Math.sqrt(Math.max(0, 1 - yv * yv));
+          const ph = i * GOLDEN;
+          const rad = R * (0.40 + 0.60 * rng());         // 0.40R .. 1.0R — hollow nucleus (breathing room at center)
+          const cc = new THREE.Vector3(
+            Math.cos(ph) * rr * rad,
+            yv * rad * Y_FLAT,                            // squish vertical -> oblate cloud
+            Math.sin(ph) * rr * rad
+          );
+          for (let j = 0; j < FRAMES_PER; j++) {
+            layout.push({
+              occ: i, idx: j,
+              pos: new THREE.Vector3(cc.x + rand(-9.5, 9.5), cc.y + rand(-7, 7), cc.z + rand(-9.5, 9.5)),
+              baseH: rand(3.7, 6.1),                       // ~+20% bigger frames -> less whitespace
+              bobPhase: rand(0, Math.PI * 2),
+              bobSpeed: rand(0.28, 0.52),
+              bobAmp: REDUCED ? 0 : rand(0.14, 0.34),
+              rollAmp: REDUCED ? 0 : rand(0.008, 0.03),
+              driftPhase: rand(0, Math.PI * 2),            // in/out depth drift (phase 1 of "serve up new")
+              driftSpeed: rand(0.010, 0.028)          // very slow, calm depth cycling
+            });
+          }
+        }
+        // 2) relax: push apart any two frames closer than MIN_SEP so none overlap in space,
+        //    then pull any stragglers back inside the oblate cloud. Deterministic (fixed seeds).
+        const _sep = new THREE.Vector3();
+        for (let pass = 0; pass < 22; pass++) {
+          for (let a = 0; a < layout.length; a++) {
+            for (let b = a + 1; b < layout.length; b++) {
+              const pa = layout[a].pos, pb = layout[b].pos;
+              _sep.subVectors(pa, pb);
+              let d = _sep.length();
+              if (d < 1e-4) { _sep.set(rand(-1, 1), rand(-1, 1), rand(-1, 1)); d = _sep.length() || 1; }
+              if (d < MIN_SEP) {
+                _sep.multiplyScalar(((MIN_SEP - d) * 0.5) / d);
+                pa.add(_sep); pb.sub(_sep);
+              }
+            }
+          }
+          for (let a = 0; a < layout.length; a++) {
+            const p = layout[a].pos;
+            const nrm = Math.hypot(p.x / R, p.y / (R * Y_FLAT), p.z / R);
+            if (nrm > 0.98) p.multiplyScalar(0.98 / nrm);
+          }
+        }
+        // 3) orient each frame to face the cloud center (reads face-on from any radial vantage) + jitter.
+        //    Object3D.lookAt is CORRECT here: for a plane it turns the +Z/front toward the target.
+        const _plq = new THREE.Object3D(); _plq.up.set(0, 1, 0);
+        for (let a = 0; a < layout.length; a++) {
+          const L = layout[a];
+          _plq.position.copy(L.pos); _plq.lookAt(center);
+          _plq.rotateX(rand(-0.16, 0.16)); _plq.rotateY(rand(-0.22, 0.22)); _plq.rotateZ(rand(-0.06, 0.06));
+          L.quat = _plq.quaternion.clone();
+        }
+
+        // ---- dust motes (atmosphere) ----
+        let dust = null;
+        {
+          const N = SMALL ? 240 : 460;
+          const g = new THREE.BufferGeometry();
+          const p = new Float32Array(N * 3);
+          for (let k = 0; k < N; k++) {
+            p[k * 3]     = rand(-R * 1.25, R * 1.25);
+            p[k * 3 + 1] = rand(-R * 0.95, R * 0.95);
+            p[k * 3 + 2] = rand(-R * 1.25, R * 1.25);
+          }
+          g.setAttribute('position', new THREE.BufferAttribute(p, 3));
+          const m = new THREE.PointsMaterial({
+            color: 0xC9A47A, size: SMALL ? 0.09 : 0.075, sizeAttenuation: true,
+            transparent: true, opacity: 0.5, depthWrite: false, fog: true
+          });
+          dust = new THREE.Points(g, m);
+          dust.frustumCulled = false;
+          scene.add(dust);
+        }
+
+        // ---- texture loading via LoadingManager ----
+        const manager = new THREE.LoadingManager();
+        const imgLoader = new THREE.ImageLoader(manager);
+        const meshes = [];
+        const occasions = FOLDERS.map(() => ({ meshes: [] }));
+
+        const fill = document.getElementById('load-fill');
+        manager.onProgress = (url, loaded, total) => {
+          if (fill && total) fill.style.width = Math.round((loaded / total) * 100) + '%';
+        };
+        manager.onLoad = () => { startReveal(); };
+        manager.onError = (url) => { console.warn('[orbit] failed:', url); };
+
+        const geo = new THREE.PlaneGeometry(1, 1);
+
+        function makeTexture(img) {
+          const long = Math.max(img.width, img.height);
+          const scale = Math.min(1, MAX_EDGE / long);
+          const w = Math.max(1, Math.round(img.width * scale));
+          const h = Math.max(1, Math.round(img.height * scale));
+          const cv = document.createElement('canvas');
+          cv.width = w; cv.height = h;
+          cv.getContext('2d').drawImage(img, 0, 0, w, h);
+          const tex = new THREE.CanvasTexture(cv);
+          tex.colorSpace = THREE.SRGBColorSpace;
+          tex.anisotropy = Math.min(4, maxAniso);
+          tex.minFilter = THREE.LinearMipmapLinearFilter;
+          tex.magFilter = THREE.LinearFilter;
+          tex.generateMipmaps = true;
+          return tex;
+        }
+
+        const camStart = homePos;   // reveal staggers inward from the establishing vantage
+        let maxRevealDist = 1;
+
+        layout.forEach((L) => {
+          const url = `../images/${FOLDERS[L.occ]}/${L.idx + 1}.webp`;
+          imgLoader.load(url, (img) => {
+            const aspect = img.width / img.height;
+            const tex = makeTexture(img);
+            const mat = new THREE.ShaderMaterial({
+              uniforms: {
+                uMap: { value: tex }, uAspect: { value: aspect },
+                uHover: { value: 0 }, uFocus: { value: 0 }, uDim: { value: 0 },
+                uReveal: { value: 0 }, uOpacity: { value: 1 },
+                uFog, uFogDensity, uBorder, uLightDir
+              },
+              vertexShader: VERT, fragmentShader: FRAG,
+              // OPAQUE: the rounded-corner cutout is done with discard, so we don't need blending —
+              // and dropping transparency removes the back-to-front re-sorting that made overlapping
+              // frames pop/jitter as the camera moved. Per-pixel depth now resolves overlaps cleanly.
+              transparent: false, depthWrite: true, depthTest: true, side: THREE.DoubleSide
+            });
+            const mesh = new THREE.Mesh(geo, mat);
+            const baseW = L.baseH * aspect, baseH = L.baseH;
+            mesh.position.copy(L.pos);
+            mesh.quaternion.copy(L.quat);
+            mesh.scale.set(baseW, baseH, 1);
+            mesh.renderOrder = 1;
+            mesh.userData = {
+              occ: L.occ, idx: L.idx, home: L.pos.clone(), baseW, baseH,
+              baseQuat: L.quat.clone(), bobPhase: L.bobPhase, bobSpeed: L.bobSpeed,
+              bobAmp: L.bobAmp, rollAmp: L.rollAmp,
+              driftPhase: L.driftPhase, driftSpeed: L.driftSpeed, homeR: L.pos.length(),
+              live: L.pos.clone(),   // live world position (eased toward drift target, repelled from neighbors)
+              hover: 0, focus: 0, dim: 0, revealDelay: 0
+            };
+            const d = L.pos.distanceTo(camStart);
+            mesh.userData.dist = d;
+            if (d > maxRevealDist) maxRevealDist = d;
+            scene.add(mesh);
+            meshes.push(mesh);
+            occasions[L.occ].meshes[L.idx] = mesh;
+          }, undefined, () => {});
+        });
+
+        // reveal delays once all present (computed in onLoad via dist)
+        function computeDelays() {
+          meshes.forEach((m) => {
+            m.userData.revealDelay = REDUCED ? 0 : Math.min(0.6, (m.userData.dist / maxRevealDist) * 0.6);
+          });
+        }
+
+        // ---- camera state (drag = look around; idle = settle in the center and slowly pan) ----
+        const cam = {
+          pos: homePos.clone(),
+          yaw: homeYaw, pitch: homePitch,      // smoothed (rendered) look angles
+          tYaw: homeYaw, tPitch: homePitch     // drag target — cam eases toward this each frame
+        };
+        const LOOK_FOLLOW = 18;                // how fast the look damps toward the target (higher = snappier)
+        const tmpQ = new THREE.Quaternion();
+        const tmpE = new THREE.Euler(0, 0, 0, 'YXZ');
+        const _fE  = new THREE.Euler(0, 0, 0, 'YXZ');    // scratch for focus orientation
+        const forward = new THREE.Vector3();
+        const _fwd2   = new THREE.Vector3();
+        const desiredPos = new THREE.Vector3();
+        const desiredQuat = new THREE.Quaternion();
+        // cloud rotation: the whole field slowly revolves around you (rigid -> spacing preserved)
+        const cloudQuat = new THREE.Quaternion();
+        const cloudE    = new THREE.Euler(0, 0, 0, 'YXZ');
+        const _op       = new THREE.Vector3();   // scratch: a frame's drift+rotation target position
+        const _rep      = new THREE.Vector3();   // scratch: repulsion axis between two frames
+        // shortest signed angular difference target-current, wrapped to [-PI, PI]
+        const angDiff = (target, cur) => Math.atan2(Math.sin(target - cur), Math.cos(target - cur));
+
+        let focusMode = false;
+        let focused = null;
+        let returning = false;            // easing back out to the whole-cloud vantage (reset / launch)
+        let pointerDown = false;          // true while a finger / button is held
+        let lastInteract = -999;          // clock time of the last user input
+        let overviewHoldUntil = Infinity; // while idle and t < this, hold at the outside vantage
+        let cloudT = 0;                   // accumulated cloud-rotation time (freezes while you drive)
+        let orbitFactor = 0;              // 0..1 eased gate on the cloud's revolution
+        const mouseNDC = new THREE.Vector2(0, 0);
+        const parallax = new THREE.Vector2(0, 0);
+
+        camera.position.copy(cam.pos);
+        tmpE.set(cam.pitch, cam.yaw, 0); camera.quaternion.setFromEuler(tmpE);
+
+        // ---- focus helpers ----
+        // Orientation is built from yaw/pitch (camera convention: forward = -Z). We deliberately do
+        // NOT use Object3D.lookAt for the camera — for a non-camera object it turns +Z toward the
+        // target, which would aim the camera 180deg the wrong way.
+        function focusTarget(mesh, outPos, outQuat) {
+          const n = forward.set(0, 0, 1).applyQuaternion(mesh.quaternion).normalize();  // frame front
+          const h = mesh.userData.baseH, w = mesh.userData.baseW;
+          const vAspect = camera.aspect;
+          const half = THREE.MathUtils.degToRad(FOV) * 0.5;
+          const fillH = h / 0.74;
+          const fillW = w / (0.82 * vAspect);
+          const dist = (Math.max(fillH, fillW) * 0.5) / Math.tan(half);
+          outPos.copy(mesh.position).addScaledVector(n, dist);            // stand off the front of the frame
+          const f = _fwd2.copy(mesh.position).sub(outPos).normalize();    // camera forward -> toward the frame
+          _fE.set(Math.asin(THREE.MathUtils.clamp(f.y, -1, 1)), Math.atan2(-f.x, -f.z), 0);
+          outQuat.setFromEuler(_fE);
+        }
+
+        function enterFocus(mesh) {
+          focusMode = true;
+          focused = mesh;
+          lastInteract = clock.getElapsedTime();
+          document.getElementById('focusUI').classList.add('active');
+          document.body.classList.add('in-focus');
+          updateCounter();
+          hideHint();
+        }
+        // adopt the camera's current pose into the drift state (no snap on resume)
+        function syncCamFromCamera() {
+          cam.pos.copy(camera.position);
+          const fdir = forward.set(0, 0, -1).applyQuaternion(camera.quaternion);
+          cam.yaw = cam.tYaw = Math.atan2(-fdir.x, -fdir.z);
+          cam.pitch = cam.tPitch = Math.asin(THREE.MathUtils.clamp(fdir.y, -1, 1));
+        }
+        function exitFocus() {
+          if (!focusMode) return;
+          syncCamFromCamera();
+          focusMode = false;
+          focused = null;
+          lastInteract = -999;   // return to center immediately on exit — no need to touch the mouse
+          document.getElementById('focusUI').classList.remove('active');
+          document.body.classList.remove('in-focus');
+        }
+        // reset: ease back out to the whole-cloud vantage; idle then holds it, then draws back in
+        function recenter() {
+          if (focusMode) exitFocus();
+          returning = true;
+          hideHint();
+        }
+        // Leave orbit. In this standalone sandbox that means navigating back to the masonry build;
+        // when this scene is ported into main.html's overlay, main.html's own exitOrbit() closes the
+        // overlay instead — so there the scene only needs to expose exitFocus()/closeInfo() as hooks.
+        function exitOrbit() { window.location.href = 'main.html'; }
+        function stepFocus(dir) {
+          if (!focusMode || !focused) return;
+          const arr = occasions[focused.userData.occ].meshes.filter(Boolean);
+          let i = arr.indexOf(focused);
+          i = (i + dir + arr.length) % arr.length;
+          focused = arr[i];
+          updateCounter();
+        }
+        function updateCounter() {
+          if (!focused) return;
+          const arr = occasions[focused.userData.occ].meshes.filter(Boolean);
+          const i = arr.indexOf(focused) + 1;
+          const el = document.getElementById('fcount');
+          el.innerHTML = '<b>' + i + '</b> / ' + arr.length;
+        }
+
+        // ---- raycasting ----
+        const raycaster = new THREE.Raycaster();
+        function pick(nx, ny) {
+          raycaster.setFromCamera({ x: nx, y: ny }, camera);
+          const hits = raycaster.intersectObjects(meshes, false);
+          return hits.length ? hits[0].object : null;
+        }
+
+        // ---- input ----
+        const pointers = new Map();
+        let dragging = false, tapCandidate = false, downTime = 0, downX = 0, downY = 0;
+        let lastX = 0, lastY = 0, lastMoveT = 0;
+        let focusDragAccum = 0;
+        let ROT = 0.0032;   // aim sensitivity, retuned per pointerType on each press
+
+        function toNDC(x, y) {
+          mouseNDC.x = (x / window.innerWidth) * 2 - 1;
+          mouseNDC.y = -(y / window.innerHeight) * 2 + 1;
+        }
+
+        canvas.addEventListener('pointerdown', (e) => {
+          canvas.setPointerCapture(e.pointerId);
+          pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+          pointerDown = true;
+          document.body.classList.add('dragging');   // disables backdrop-filter blur while the pointer is down
+          lastInteract = clock.getElapsedTime();
+          if (returning) { returning = false; syncCamFromCamera(); }   // grabbing takes over the reset
+          firstInteraction();
+          if (pointers.size === 1) {
+            dragging = true; tapCandidate = true;
+            ROT = e.pointerType === 'touch' ? 0.0044 : 0.0030;   // touch needs more travel per turn
+            downTime = performance.now(); downX = e.clientX; downY = e.clientY;
+            lastX = e.clientX; lastY = e.clientY; lastMoveT = downTime;
+            focusDragAccum = 0;
+            canvas.classList.add('dragging');
+          } else if (pointers.size === 2) {
+            dragging = false; tapCandidate = false;   // two fingers: stop single-finger drag (pinch is inert)
+          }
+        });
+
+        canvas.addEventListener('pointermove', (e) => {
+          if (pointers.has(e.pointerId)) pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+          toNDC(e.clientX, e.clientY);
+
+          if (pointers.size >= 2) { return; }   // pinch is inert in drift (no throttle)
+          if (!dragging) return;
+          lastInteract = clock.getElapsedTime();
+
+          const now = performance.now();
+          const dt = Math.max(0.008, (now - lastMoveT) / 1000);
+          const dx = e.clientX - lastX, dy = e.clientY - lastY;
+          lastX = e.clientX; lastY = e.clientY; lastMoveT = now;
+          if (Math.abs(e.clientX - downX) > 7 || Math.abs(e.clientY - downY) > 7) tapCandidate = false;
+
+          if (focusMode) {
+            focusDragAccum += dx;
+            const TH = 90;
+            if (focusDragAccum > TH) { stepFocus(-1); focusDragAccum = 0; }
+            else if (focusDragAccum < -TH) { stepFocus(1); focusDragAccum = 0; }
+            return;
+          }
+
+          // accumulate straight into the look target (delta x sensitivity, no timing math);
+          // the loop damps the camera toward it -> stable, smooth, frame-rate independent. Inverted axes.
+          cam.tYaw += dx * ROT;
+          cam.tPitch = THREE.MathUtils.clamp(cam.tPitch + dy * ROT, -1.15, 1.15);
+        });
+
+        function endPointer(e, isCancel) {
+          if (pointers.has(e.pointerId)) pointers.delete(e.pointerId);
+          // a tap is only a genuine quick release — never a system-cancelled or capture-lost gesture
+          if (!isCancel && tapCandidate && pointers.size === 0) {
+            const dt = performance.now() - downTime;
+            if (dt < 320) handleTap(e.clientX, e.clientY);
+          }
+          if (pointers.size === 1) {
+            // dropped from two fingers back to one: re-arm single-finger drag from the survivor
+            const p = [...pointers.values()][0];
+            dragging = true; tapCandidate = false;
+            downX = lastX = p.x; downY = lastY = p.y; lastMoveT = performance.now();
+          } else if (pointers.size === 0) {
+            dragging = false; pointerDown = false;
+            canvas.classList.remove('dragging'); document.body.classList.remove('dragging');
+          }
+          lastInteract = clock.getElapsedTime();
+        }
+        canvas.addEventListener('pointerup', (e) => endPointer(e, false));
+        canvas.addEventListener('pointercancel', (e) => endPointer(e, true));
+        canvas.addEventListener('lostpointercapture', (e) => endPointer(e, true));
+        window.addEventListener('blur', () => {   // window switch mid-drag: don't leave input stuck
+          pointers.clear(); dragging = false; pointerDown = false;
+          canvas.classList.remove('dragging'); document.body.classList.remove('dragging');
+        });
+
+        function handleTap(x, y) {
+          toNDC(x, y);
+          const hit = pick(mouseNDC.x, mouseNDC.y);
+          if (hit) enterFocus(hit);
+          else if (focusMode) exitFocus();
+        }
+
+        canvas.addEventListener('wheel', (e) => {
+          e.preventDefault();
+          firstInteraction();
+          lastInteract = clock.getElapsedTime();
+          if (focusMode) {
+            const d = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+            if (d > 12) stepFocus(1);
+            else if (d < -12) stepFocus(-1);
+            return;
+          }
+          // drift has no throttle — wheel is swallowed to keep the page from scrolling
+        }, { passive: false });
+
+        window.addEventListener('keydown', (e) => {
+          if (e.key === 'Escape') {
+            if (focusMode) exitFocus();               // 1st esc: step out of a photo
+            else if (info.classList.contains('open')) closeInfo();   // 2nd: close info
+            else exitOrbit();                         // otherwise: leave orbit -> masonry
+          } else if (focusMode && (e.key === 'ArrowRight' || e.key === 'ArrowDown')) {
+            stepFocus(1); e.preventDefault();
+          } else if (focusMode && (e.key === 'ArrowLeft' || e.key === 'ArrowUp')) {
+            stepFocus(-1); e.preventDefault();
+          }
+        });
+
+        // focus UI buttons
+        document.getElementById('fprev').addEventListener('click', () => stepFocus(-1));
+        document.getElementById('fnext').addEventListener('click', () => stepFocus(1));
+        document.getElementById('fclose').addEventListener('click', () => exitFocus());
+
+        // chrome: info panel
+        const info = document.getElementById('info');
+        const infoToggle = document.getElementById('info-toggle');
+        function openInfo() { info.classList.add('open'); infoToggle.setAttribute('aria-expanded', 'true'); }
+        function closeInfo() { info.classList.remove('open'); infoToggle.setAttribute('aria-expanded', 'false'); }
+        infoToggle.addEventListener('click', () => info.classList.contains('open') ? closeInfo() : openInfo());
+        document.addEventListener('pointerdown', (e) => {
+          if (info.classList.contains('open') && !info.contains(e.target) && !infoToggle.contains(e.target)) closeInfo();
+        });
+        document.getElementById('home-link').addEventListener('click', (e) => {
+          e.preventDefault();
+          if (focusMode) { exitFocus(); return; }   // step out of a photo first
+          closeInfo();
+          exitOrbit();                               // otherwise leave orbit -> masonry
+        });
+        document.getElementById('recenter').addEventListener('click', recenter);
+
+        // hint
+        const hint = document.getElementById('hint');
+        let hintTimer = null, interacted = false;
+        function showHint() { hint.classList.add('show'); hintTimer = setTimeout(hideHint, 6000); }
+        function hideHint() { hint.classList.remove('show'); hint.classList.add('hide'); if (hintTimer) clearTimeout(hintTimer); }
+        function firstInteraction() { if (!interacted) { interacted = true; hideHint(); } }
+
+        // desktop hover feedback
+        let hoverThrottle = 0;
+
+        // ---- reveal ----
+        let revealStart = -1;
+        const revealDur = REDUCED ? 0.5 : 2.2;
+        function startReveal() {
+          computeDelays();
+          revealStart = clock.getElapsedTime();
+          overviewHoldUntil = revealStart + 2.5;   // hold the establishing overview, then draw inward
+          const loader = document.getElementById('loader');
+          loader.classList.add('done');
+          setTimeout(() => { loader.style.display = 'none'; }, 950);
+          canvas.classList.add('ready');
+          document.getElementById('chrome').classList.add('ready');
+          if (!REDUCED) setTimeout(showHint, 900);
+        }
+
+        // ---- resize ----
+        function onResize() {
+          const w = window.innerWidth, h = window.innerHeight;
+          camera.aspect = w / h;
+          camera.updateProjectionMatrix();
+          renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+          renderer.setSize(w, h, false);
+        }
+        window.addEventListener('resize', onResize);
+
+        // ---- clock / visibility ----
+        const clock = new THREE.Clock();
+        let rafId = 0, running = true;
+        document.addEventListener('visibilitychange', () => {
+          if (document.hidden) { running = false; }
+          else if (!running) { running = true; clock.getDelta(); cancelAnimationFrame(rafId); loop(); }
+        });
+
+        const smooth = (rate, dt) => 1 - Math.exp(-rate * dt);
+
+        // ---- main loop ----
+        function loop() {
+          if (!running) return;
+          rafId = requestAnimationFrame(loop);
+          const dt = Math.min(0.05, clock.getDelta());
+          const t = clock.getElapsedTime();
+
+          // --- look damping + idle position (frozen while focused / resetting) ---
+          if (!focusMode && !returning) {
+            const idle = !pointerDown && (t - lastInteract) > IDLE_DELAY;
+
+            // while idle at the overview, re-aim the look at the whole cloud
+            if (idle && t < overviewHoldUntil) { cam.tYaw = homeYaw; cam.tPitch = homePitch; }
+
+            // look: 1:1 while the pointer is down (the view tracks the mouse exactly — zero follow
+            // lag, and no exponential filter to turn uneven frame timing into jitter); damp only when
+            // settling after release.
+            if (pointerDown) {
+              cam.yaw = cam.tYaw; cam.pitch = cam.tPitch;
+            } else {
+              cam.yaw += angDiff(cam.tYaw, cam.yaw) * smooth(LOOK_FOLLOW, dt);
+              cam.pitch += (cam.tPitch - cam.pitch) * smooth(LOOK_FOLLOW, dt);
+            }
+
+            // position: hold the outside vantage, or settle to the center (the cloud revolves
+            // around you, applied per-frame below, so the photos orbit past like electrons).
+            if (idle && t < overviewHoldUntil) cam.pos.lerp(homePos, smooth(0.7, dt));
+            else if (idle) cam.pos.lerp(center, smooth(0.5, dt));
+          }
+
+          // --- desired camera pose ---
+          if (focusMode && focused) {
+            focusTarget(focused, desiredPos, desiredQuat);
+          } else if (returning) {
+            // ease position + gaze out to the whole-cloud vantage (yaw/pitch = camera convention)
+            cam.pos.lerp(homePos, smooth(1.7, dt));
+            cam.tYaw = homeYaw; cam.tPitch = homePitch;   // keep the target in sync -> no snap on exit
+            cam.yaw += angDiff(homeYaw, cam.yaw) * smooth(1.7, dt);
+            cam.pitch += (homePitch - cam.pitch) * smooth(1.7, dt);
+            if (cam.pos.distanceTo(homePos) < 0.6) {
+              returning = false;
+              overviewHoldUntil = t + 4.0;   // let the overview breathe before it draws back in
+              lastInteract = t;
+            }
+            tmpE.set(cam.pitch, cam.yaw, 0);
+            desiredQuat.setFromEuler(tmpE);
+            desiredPos.copy(cam.pos);
+          } else {
+            // while actively dragging, keep it a pure crisp rotation — no ambient sway, no mouse
+            // parallax, no positional drift (those are idle-only "life", and they fight the drag).
+            const still = pointerDown || REDUCED;
+            const ambYaw = still ? 0 : Math.sin(t * 0.05) * 0.02;
+            const ambPitch = still ? 0 : Math.sin(t * 0.037) * 0.014;
+            tmpE.set(cam.pitch + ambPitch, cam.yaw + ambYaw, 0);   // roll stays 0 — self-leveling
+            desiredQuat.setFromEuler(tmpE);
+
+            if (still) {
+              desiredPos.copy(cam.pos);
+            } else {
+              // subtle mouse parallax + ambient positional sway for life (idle only)
+              parallax.x += (mouseNDC.x * 0.9 - parallax.x) * smooth(3, dt);
+              parallax.y += (mouseNDC.y * 0.9 - parallax.y) * smooth(3, dt);
+              const right = new THREE.Vector3(1, 0, 0).applyQuaternion(desiredQuat);
+              const up = new THREE.Vector3(0, 1, 0).applyQuaternion(desiredQuat);
+              desiredPos.copy(cam.pos)
+                .addScaledVector(right, parallax.x + Math.sin(t * 0.08) * 0.4)
+                .addScaledVector(up, parallax.y + Math.cos(t * 0.065) * 0.3);
+            }
+          }
+
+          if (pointerDown && !focusMode && !returning) {
+            camera.position.copy(desiredPos);      // pure rotation while dragging — no positional drift
+            camera.quaternion.copy(desiredQuat);   // 1:1, no follow/slerp lag
+          } else {
+            const posRate = focusMode ? 3.4 : (REDUCED ? 20 : 12);
+            camera.position.lerp(desiredPos, smooth(posRate, dt));
+            camera.quaternion.slerp(desiredQuat, smooth(focusMode ? 3.4 : (REDUCED ? 22 : 14), dt));
+          }
+
+          // --- reveal progress ---
+          let revealProg = 1;
+          if (revealStart >= 0) revealProg = Math.min(1, (t - revealStart) / revealDur);
+
+          // --- desktop hover pick ---
+          let hoverMesh = null;
+          if (HOVERABLE && !focusMode && !dragging && revealStart >= 0) {
+            hoverThrottle++;
+            if (hoverThrottle % 2 === 0) hoverMesh = pick(mouseNDC.x, mouseNDC.y);
+            else hoverMesh = window.__lastHover || null;
+            window.__lastHover = hoverMesh;
+          }
+          canvas.classList.toggle('pointing', !!hoverMesh);
+
+          // cloud revolution: a slow spin about a gently precessing (tumbling) axis. It's one
+          // rigid rotation shared by every frame, so all pairwise spacing is preserved (no new
+          // overlaps) — the photos orbit around the centered viewer like a slow electron cloud.
+          if (!REDUCED) {
+            // the cloud only revolves when you're NOT driving it: grabbing eases the rotation to a
+            // stop (fast) so your drag never fights the motion; releasing lets it gently resume.
+            const orbitTarget = (!pointerDown && !focusMode && !returning) ? 1 : 0;
+            orbitFactor += (orbitTarget - orbitFactor) * smooth(orbitTarget < orbitFactor ? 6.0 : 1.2, dt);
+            cloudT += orbitFactor * dt;
+            cloudE.set(0.16 * Math.sin(cloudT * 0.011), cloudT * ORBIT_SPIN, 0.11 * Math.sin(cloudT * 0.008));
+            cloudQuat.setFromEuler(cloudE);
+
+            // the heavy sim is SKIPPED while the pointer is down: the cloud is frozen during a drag
+            // anyway, so not updating positions is visually identical and frees the whole frame budget.
+            if (!pointerDown) {
+            // 1) ease each frame's LIVE position toward its drift + rotation target
+            for (let i = 0; i < meshes.length; i++) {
+              const u = meshes[i].userData;
+              let rf = 1 + DRIFT_AMP * Math.sin(cloudT * u.driftSpeed + u.driftPhase);
+              if (u.homeR > 0.01) rf = Math.max(rf, DRIFT_MIN_R / u.homeR);
+              _op.copy(u.home).multiplyScalar(rf).applyQuaternion(cloudQuat);
+              u.live.lerp(_op, smooth(2.2, dt));
+            }
+            // 2) mutual repulsion: push apart any two frames closer than MIN_SEP (soft, a couple of
+            //    passes) so they gently avoid each other and never pass through, even drifting in depth
+            for (let pass = 0; pass < 2; pass++) {
+              for (let a = 0; a < meshes.length; a++) {
+                const pa = meshes[a].userData.live;
+                for (let b = a + 1; b < meshes.length; b++) {
+                  const pb = meshes[b].userData.live;
+                  _rep.subVectors(pa, pb);
+                  const d = _rep.length();
+                  if (d > 1e-4 && d < MIN_SEP) {
+                    _rep.multiplyScalar(((MIN_SEP - d) * 0.5) / d);
+                    pa.add(_rep); pb.sub(_rep);
+                  }
+                }
+              }
+            }
+            // 3) keep the nucleus clear (repulsion mustn't squeeze a frame into the viewer)
+            for (let i = 0; i < meshes.length; i++) {
+              const p = meshes[i].userData.live, r = p.length();
+              if (r > 0.01 && r < DRIFT_MIN_R) p.multiplyScalar(DRIFT_MIN_R / r);
+            }
+            }  // end !pointerDown heavy-sim gate
+          }
+
+          // --- per-plane updates ---
+          for (let i = 0; i < meshes.length; i++) {
+            const m = meshes[i], u = m.userData;
+            // place the frame at its live (repelled) position + gentle bob & roll, facing center
+            if (!REDUCED) {
+              m.position.set(u.live.x, u.live.y + Math.sin(cloudT * u.bobSpeed + u.bobPhase) * u.bobAmp, u.live.z);
+              m.quaternion.copy(cloudQuat).multiply(u.baseQuat);
+              m.rotateZ(Math.sin(cloudT * u.bobSpeed * 0.7 + u.bobPhase) * u.rollAmp);
+            }
+            // focus draws the clicked frame ON TOP (ignores depth) so nothing occludes it
+            const wantDepth = !(focusMode && m === focused);
+            if (m.material.depthTest !== wantDepth) { m.material.depthTest = wantDepth; m.renderOrder = wantDepth ? 1 : 10; }
+            // hover / focus / dim easing
+            const hoverT = (m === hoverMesh) ? 1 : 0;
+            const focusT = (focusMode && m === focused) ? 1 : 0;
+            const dimT = (focusMode && m !== focused) ? 1 : 0;
+            const k = smooth(REDUCED ? 24 : 9, dt);
+            u.hover += (hoverT - u.hover) * k;
+            u.focus += (focusT - u.focus) * k;
+            u.dim += (dimT - u.dim) * smooth(REDUCED ? 24 : 6, dt);
+
+            const un = m.material.uniforms;
+            un.uHover.value = u.hover;
+            un.uFocus.value = u.focus;
+            un.uDim.value = u.dim;
+
+            // reveal (staggered scale/opacity)
+            const rev = THREE.MathUtils.clamp((revealProg - u.revealDelay) / (1 - u.revealDelay || 1), 0, 1);
+            const eased = rev * rev * (3 - 2 * rev);
+            un.uReveal.value = eased;
+            const s = REDUCED ? 1 : (0.9 + 0.1 * eased) * (1 + u.hover * 0.05 + u.focus * 0.03);
+            m.scale.set(u.baseW * s, u.baseH * s, 1);
+          }
+
+          // dust drift
+          if (dust && !REDUCED) dust.rotation.y = t * 0.006;
+
+          renderer.render(scene, camera);
+        }
+
+        loop();
+      }
+    })();
+  </script>
+</body>
+</html>
