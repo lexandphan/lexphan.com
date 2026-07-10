@@ -30,6 +30,7 @@ TEMPLATE = """<!doctype html>
   <script src="/vendor/Flip.min.js"></script>
   <script src="/vendor/lenis.min.js"></script>
   <script src="/vendor/curtains.umd.min.js"></script>
+  <script src="/album-aspects.js"></script>
   <script src="/app.js"></script>
   <script type="module" src="/orbit.js"></script>
 </body>

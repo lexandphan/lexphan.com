@@ -734,12 +734,15 @@
 
     function buildAlbum() {
       var html = '';
+      var aspects = (window.ALBUM_ASPECTS && window.ALBUM_ASPECTS[ALBUM_FOLDER]) || null;
       for (var i = 1; i <= ALBUM_COUNT; i++) {
         var pinned = (i % 15 === 0) ? ' pinned' : '';
         var load = (i <= 4) ? 'eager' : 'lazy';
+        /* reserve each frame's exact height BEFORE the image loads → no lazy-load reflow/jank */
+        var ar = (aspects && aspects[i - 1]) ? ' style="aspect-ratio:' + aspects[i - 1] + '"' : '';
         html +=
           '<button class="frame' + pinned + '" type="button" data-i="' + (i - 1) + '">' +
-            '<img src="/images/' + ALBUM_FOLDER + '/' + i + '.webp" alt="Photograph ' + pad(i) + '" loading="' + load + '" decoding="async" />' +
+            '<img src="/images/' + ALBUM_FOLDER + '/' + i + '.webp" alt="Photograph ' + pad(i) + '" loading="' + load + '" decoding="async"' + ar + ' />' +
             '<span class="fnum">' + pad(i) + ' / ' + ALBUM_COUNT + '</span>' +
           '</button>';
       }
