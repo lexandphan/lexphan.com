@@ -521,15 +521,20 @@
 
         // focus = a moving tour of the clicked photo's album, IN ORDER, through the cloud: each step
         // loads the next album photo onto a nearby frame and the camera flies to it.
-        let focusSeq = 0, focusLoadToken = 0, focusPrev = null;
-        function nearestMeshTo(m, avoid) {   // closest OTHER frame (short flight), skipping the one we came from
-          let best = m, bestD = Infinity; const p = m.position;
+        let focusSeq = 0, focusLoadToken = 0;
+        const focusTrail = [];   // recently visited frames — excluded so the tour WANDERS instead of
+                                 // cycling A→B→C→A (three mutually-nearest frames form a perfect loop)
+        function nextFocusMesh(m) {
+          let cands = [];
           for (let i = 0; i < meshes.length; i++) {
-            const o = meshes[i]; if (o === m || o === avoid) continue;
-            const d = o.position.distanceToSquared(p);
-            if (d < bestD) { bestD = d; best = o; }
+            const o = meshes[i];
+            if (o === m || focusTrail.indexOf(o) !== -1) continue;
+            cands.push(o);
           }
-          return best;
+          if (!cands.length) { focusTrail.length = 0; cands = meshes.filter((o) => o !== m); }
+          cands.sort((a, b) => a.position.distanceToSquared(m.position) - b.position.distanceToSquared(m.position));
+          // random pick among the nearest few: flights stay short but the path never falls into a cycle
+          return cands[Math.floor(Math.random() * Math.min(4, cands.length))];
         }
         function loadFocusImage(si, mesh) {   // load ALBUM_SEQ[si] into `mesh` (ignore stale loads)
           const token = ++focusLoadToken;
@@ -555,7 +560,7 @@
           focusOrbMode = zoom > SHELL;   // ORB viewer (spin-to-front) vs NUCLEUS viewer (fly-to)
           mesh.userData.swapScale = 1;   // never view a frame that's mid-shrink
           focusSeq = mesh.userData.seqIndex;   // begin stepping from THIS photo's spot in its album
-          focusPrev = null;
+          focusTrail.length = 0;
           yawVel = 0; pitchVel = 0;            // a tap ends any fling -> no stale momentum survives the focus session
           if (focusOrbMode) { zoomTarget = Z_ORB; aimFrontToFocus(); }   // orb: stay outside, spin photo to front
           lastInteract = clock.getElapsedTime();
@@ -591,10 +596,10 @@
         function stepFocus(dir) {   // tour the album IN ORDER: fly to a nearby frame carrying the next photo
           if (!focusMode || !focused) return;
           focusSeq = (focusSeq + dir + N_SEQ) % N_SEQ;
-          const prev = focused;
-          const target = nearestMeshTo(focused, focusPrev);   // skip where we came from -> no ping-pong
+          const target = nextFocusMesh(focused);
           target.userData.swapScale = 1;    // don't fly toward a mid-shrink frame
-          focusPrev = prev;
+          focusTrail.push(focused);
+          if (focusTrail.length > 6) focusTrail.shift();   // remember the last ~6 stops
           focused = target;
           loadFocusImage(focusSeq, target); // load the next album photo into it
           if (focusOrbMode) aimFrontToFocus();   // orb: spin to front (nucleus: the camera flies to it)
@@ -618,7 +623,8 @@
         const pointers = new Map();
         let dragging = false, tapCandidate = false, downTime = 0, downX = 0, downY = 0;
         let lastX = 0, lastY = 0, lastMoveT = 0;
-        let focusDragAccum = 0;
+        let focusDragAccum = 0, focusSwiped = false;   // one focus step per swipe gesture
+        let lastWheelStep = 0;                          // wheel-step cooldown (trackpad momentum)
         let lastPinch = 0;   // previous two-finger distance (pinch-to-zoom)
         let ROT = 0.0032;   // aim sensitivity, retuned per pointerType on each press
 
@@ -639,7 +645,7 @@
             ROT = e.pointerType === 'touch' ? 0.0044 : 0.0030;   // touch needs more travel per turn
             downTime = performance.now(); downX = e.clientX; downY = e.clientY;
             lastX = e.clientX; lastY = e.clientY; lastMoveT = downTime;
-            focusDragAccum = 0;
+            focusDragAccum = 0; focusSwiped = false;
             canvas.classList.add('dragging');
           } else if (pointers.size === 2) {
             dragging = false; tapCandidate = false; lastPinch = 0;   // two fingers: begin pinch-to-zoom
@@ -670,8 +676,11 @@
           if (focusMode) {
             focusDragAccum += dx;
             const TH = 90;
-            if (focusDragAccum > TH) { stepFocus(-1); focusDragAccum = 0; }
-            else if (focusDragAccum < -TH) { stepFocus(1); focusDragAccum = 0; }
+            // ONE step per gesture: a long swipe used to fire a step every 90px and skip photos
+            if (!focusSwiped) {
+              if (focusDragAccum > TH) { stepFocus(-1); focusSwiped = true; }
+              else if (focusDragAccum < -TH) { stepFocus(1); focusSwiped = true; }
+            }
             return;
           }
 
@@ -731,9 +740,14 @@
           firstInteraction();
           lastInteract = clock.getElapsedTime();
           if (focusMode) {
+            // cooldown: trackpad momentum fires dozens of wheel events per flick — one step each
+            // would blast through the album; 320ms keeps deliberate scrolling responsive
             const d = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
-            if (d > 12) stepFocus(1);
-            else if (d < -12) stepFocus(-1);
+            const now = performance.now();
+            if (now - lastWheelStep > 320) {
+              if (d > 12) { stepFocus(1); lastWheelStep = now; }
+              else if (d < -12) { stepFocus(-1); lastWheelStep = now; }
+            }
             return;
           }
           // scroll bridges the modes: up = zoom in (dive toward the nucleus), down = pull out to the orb
