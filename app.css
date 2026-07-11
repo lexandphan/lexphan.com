@@ -606,7 +606,7 @@
       border-radius: 2px;
       box-shadow: var(--shadow-lift);
     }
-    .lb-close {
+    .lb-nav, .lb-close {
       position: absolute;
       display: inline-flex;
       align-items: center;
@@ -619,6 +619,16 @@
       -webkit-backdrop-filter: blur(6px);
       backdrop-filter: blur(6px);
       transition: background .25s var(--ease), transform .25s var(--ease);
+    }
+    /* arrows are desktop-only: on touch they overlap the print (invisible over bright photos)
+       and swipe owns navigation there */
+    .lb-nav { display: none; }
+    @media (hover: hover) and (pointer: fine) {
+      .lb-nav { display: inline-flex; top: 50%; transform: translateY(-50%); width: 48px; height: 48px; }
+      .lb-nav:hover { background: rgba(244, 241, 234, 0.18); }
+      .lb-nav svg { width: 20px; height: 20px; }
+      .lb-prev { left: clamp(8px, 2vw, 30px); }
+      .lb-next { right: clamp(8px, 2vw, 30px); }
     }
     .lb-close { top: clamp(12px, 2.4vh, 26px); right: clamp(12px, 2vw, 30px); width: 44px; height: 44px; }
     .lb-close:hover { background: rgba(244, 241, 234, 0.18); }
@@ -866,8 +876,25 @@
     #orbit-overlay #ob-hint.show { opacity: .68; }
     #orbit-overlay #ob-hint.hide { opacity: 0; }
 
-    #orbit-overlay #ob-focusUI { position: absolute; inset: 0; z-index: 6; pointer-events: none; opacity: 0; transition: opacity .5s var(--ease); }
-    #orbit-overlay #ob-focusUI.active { opacity: 1; }
+    /* visibility rides along with opacity so the inactive UI is never hit-testable or tabbable */
+    #orbit-overlay #ob-focusUI { position: absolute; inset: 0; z-index: 6; pointer-events: none; opacity: 0; visibility: hidden; transition: opacity .5s var(--ease), visibility .5s var(--ease); }
+    #orbit-overlay #ob-focusUI.active { opacity: 1; visibility: visible; }
+    /* focus-step arrows are desktop-only (touch steps by swipe) */
+    #orbit-overlay .fnav { display: none; }
+    @media (hover: hover) and (pointer: fine) {
+      #orbit-overlay .fnav {
+        position: absolute; top: 50%; transform: translateY(-50%); width: 52px; height: 52px; border-radius: 50%;
+        pointer-events: auto; display: grid; place-items: center; color: var(--ink);
+        background: rgba(246,242,234,0.55); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+        border: 1px solid rgba(38,34,29,.10); font-size: 20px; line-height: 1;
+        transition: background .35s var(--ease), transform .35s var(--ease), opacity .35s;
+      }
+      #orbit-overlay .fnav:hover { background: rgba(246,242,234,.85); }
+      #orbit-overlay #ob-fprev { left: clamp(14px, 3vw, 40px); }
+      #orbit-overlay #ob-fnext { right: clamp(14px, 3vw, 40px); }
+      #orbit-overlay #ob-fprev:active { transform: translateY(-50%) translateX(-3px); }
+      #orbit-overlay #ob-fnext:active { transform: translateY(-50%) translateX(3px); }
+    }
     #orbit-overlay #ob-fclose {
       position: absolute; top: clamp(58px, 6.4vw, 78px); left: 50%; transform: translateX(-50%); pointer-events: auto;
       font-family: var(--mono); font-size: 10px; letter-spacing: .2em; text-transform: uppercase; color: var(--ink-2);
@@ -917,6 +944,7 @@
     #orbit-overlay.in-focus #ob-reset { opacity: 0; pointer-events: none; }
     /* drop backdrop-filter while dragging (re-blurring it every frame is a top cause of drag jank) */
     #orbit-overlay.dragging #ob-reset,
+    #orbit-overlay.dragging .fnav,
     #orbit-overlay.dragging #ob-fclose,
     #orbit-overlay.dragging #ob-info { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
 

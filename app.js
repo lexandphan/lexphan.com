@@ -928,6 +928,8 @@
     var lbCounter = lightbox.querySelector('.lb-counter');
     var backdrop  = lightbox.querySelector('.lb-backdrop');
     var figure    = lightbox.querySelector('.lb-figure');
+    var lbPrev    = lightbox.querySelector('.lb-prev');
+    var lbNext    = lightbox.querySelector('.lb-next');
     var lbClose   = lightbox.querySelector('.lb-close');
     var curIdx = 0;
     var lastTrigger = null;
@@ -1013,15 +1015,24 @@
       } else { finish(); }
     }
 
+    lbPrev.addEventListener('click', function () { go(-1); });
+    lbNext.addEventListener('click', function () { go(1); });
     lbClose.addEventListener('click', closeLightbox);
 
     lightbox.addEventListener('click', function (e) {
-      if (e.target.closest('.lb-figure, .lb-close')) return;
+      if (e.target.closest('.lb-figure, .lb-nav, .lb-close')) return;
       closeLightbox();
     });
 
-    /* close is the only focusable control (arrows removed — keys/swipe navigate) */
-    function trap(e) { e.preventDefault(); lbClose.focus(); }
+    /* trap over the VISIBLE controls (arrows are display:none on touch) */
+    function trap(e) {
+      var f = [lbPrev, lbNext, lbClose].filter(function (el) { return el.offsetParent !== null; });
+      if (!f.length) { e.preventDefault(); return; }
+      var first = f[0], last = f[f.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+      else if (f.indexOf(document.activeElement) === -1) { e.preventDefault(); first.focus(); }
+    }
 
     /* document-level so Esc/arrows keep working even when focus has left the lightbox
        (e.g. after clicking the photo or backdrop, which aren't focusable) */
