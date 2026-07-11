@@ -339,25 +339,6 @@
       border-radius: inherit;
       transition: opacity .6s var(--ease);
     }
-    .print .idx {
-      position: absolute;
-      z-index: 5;                         /* above #curtains-canvas (z-index:2) */
-      left: 9px;
-      bottom: 9px;
-      font-family: var(--mono);
-      font-size: 10px;
-      letter-spacing: 0.14em;
-      color: var(--paper);
-      background: rgba(23, 19, 15, 0.6);   /* scrim holds ≥4.5:1 even over bright skies */
-      -webkit-backdrop-filter: blur(4px);
-      backdrop-filter: blur(4px);
-      padding: 3px 8px;
-      border-radius: 999px;
-      opacity: 0;
-      transform: translateY(5px);
-      transition: opacity .35s var(--ease), transform .35s var(--ease);
-      pointer-events: none;
-    }
     .print:hover, .print:focus-visible, .print.is-hover {
       box-shadow: var(--shadow-lift);
     }
@@ -366,10 +347,6 @@
     html:not(.curtains-on) .print:hover,
     html:not(.curtains-on) .print:focus-visible,
     html:not(.curtains-on) .print.is-hover { z-index: 5; }
-    .print:hover .idx, .print:focus-visible .idx, .print.is-hover .idx {
-      opacity: 1;
-      transform: none;
-    }
     /* spotlight: gently recede the covers you are not pointing at.
        Non-WebGL only (a filter is a stacking context; WebGL dims siblings
        inside the shader via uDim instead). */
@@ -662,16 +639,9 @@
       border-radius: 999px;
     }
 
-    /* any coarse pointer (tablets included): the badge IS the tap affordance — hover never fires */
-    @media (pointer: coarse) {
-      .print .idx { opacity: 1; transform: none; }
-    }
-
     /* ---- mobile ---- */
     @media (max-width: 560px) {
       .masonry { --mcol-gap: 8.64px; }
-      /* touch: covers read their index as a tap affordance */
-      .print .idx { opacity: 1; transform: none; }
       .proto { bottom: 12px; padding: 4px 5px 4px 6px; gap: 2px; }
       .proto-label, .proto-sep { display: none; }
       .proto button { padding: 6px 11px; }

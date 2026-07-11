@@ -156,14 +156,6 @@
         a.appendChild(peek);
       }
 
-      var idx = document.createElement('span');
-      idx.className = 'idx';
-      /* the album's photo count — "a set lives here" — instead of a shuffle-order
-         number that implied a sequence the masonry scrambles on every reshuffle */
-      idx.textContent = String(ALBUM_META[cover.folder] || '');
-      a._idxEl = idx;
-      a.appendChild(idx);
-
       bindHover(a);
       return a;
     }
