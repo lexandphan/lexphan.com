@@ -743,9 +743,8 @@
           else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { stepFocus(-1); e.preventDefault(); }
         });
 
-        // focus UI buttons (no close button — Esc, the wordmark, or tapping empty space all exit)
-        on(document.getElementById('ob-fprev'), 'click', () => stepFocus(-1));
-        on(document.getElementById('ob-fnext'), 'click', () => stepFocus(1));
+        // (no focus nav buttons — drag/swipe, wheel, and arrow keys step the album;
+        //  Esc, the wordmark, or tapping empty space exit)
 
         // chrome: info panel
         const info = document.getElementById('ob-info');

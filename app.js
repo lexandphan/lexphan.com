@@ -41,6 +41,18 @@
     function pad(n) { return ('0' + n).slice(-2); }
     function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 
+    /* mobile status/toolbar tint (shared by the lightbox + orbit). iOS Safari often ignores
+       attribute mutations on an existing theme-color meta — it reliably notices node
+       removal + insertion, so replace the tag outright. */
+    function setThemeColor(c) {
+      var m = document.querySelector('meta[name="theme-color"]');
+      if (m && m.parentNode) m.parentNode.removeChild(m);
+      m = document.createElement('meta');
+      m.setAttribute('name', 'theme-color');
+      m.setAttribute('content', c);
+      document.head.appendChild(m);
+    }
+
     /* ---------- LENIS momentum smooth-scroll, driven by GSAP ticker ----------
        Kept enabled on ALBUM + INFO. On HOME, when curtains is active we STOP
        Lenis and use native scrolling so curtains' built-in scroll tracking
@@ -916,8 +928,6 @@
     var lbCounter = lightbox.querySelector('.lb-counter');
     var backdrop  = lightbox.querySelector('.lb-backdrop');
     var figure    = lightbox.querySelector('.lb-figure');
-    var lbPrev    = lightbox.querySelector('.lb-prev');
-    var lbNext    = lightbox.querySelector('.lb-next');
     var lbClose   = lightbox.querySelector('.lb-close');
     var curIdx = 0;
     var lastTrigger = null;
@@ -953,6 +963,7 @@
       lightbox.setAttribute('aria-hidden', 'false');
       app.setAttribute('inert', '');
       document.documentElement.classList.add('lb-open');
+      setThemeColor('#17130F');   /* dark viewer → dark status/toolbar bars */
       /* sentinel history entry so Back closes the viewer (the mobile-native gesture)
          instead of switching the view underneath the open modal */
       try { history.pushState({ view: 'album', album: ALBUM_FOLDER, overlay: 'lb' }, '', location.pathname + location.search); } catch (e) {}
@@ -988,6 +999,7 @@
         lightbox.setAttribute('aria-hidden', 'true');
         app.removeAttribute('inert');
         document.documentElement.classList.remove('lb-open');
+        setThemeColor('#F4F1EA');
         if (lenis) { try { lenis.start(); } catch (e) {} }
         if (lastTrigger) lastTrigger.focus();
       };
@@ -1001,21 +1013,15 @@
       } else { finish(); }
     }
 
-    lbPrev.addEventListener('click', function () { go(-1); });
-    lbNext.addEventListener('click', function () { go(1); });
     lbClose.addEventListener('click', closeLightbox);
 
     lightbox.addEventListener('click', function (e) {
-      if (e.target.closest('.lb-figure, .lb-nav, .lb-close')) return;
+      if (e.target.closest('.lb-figure, .lb-close')) return;
       closeLightbox();
     });
 
-    function trap(e) {
-      var f = [lbPrev, lbNext, lbClose];
-      var first = f[0], last = f[f.length - 1];
-      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
-      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
-    }
+    /* close is the only focusable control (arrows removed — keys/swipe navigate) */
+    function trap(e) { e.preventDefault(); lbClose.focus(); }
 
     /* document-level so Esc/arrows keep working even when focus has left the lightbox
        (e.g. after clicking the photo or backdrop, which aren't focusable) */
@@ -1204,16 +1210,6 @@
       }
 
       /* pause the main site while orbit runs */
-      function setThemeColor(c) {
-        /* iOS Safari often ignores attribute mutations on an existing theme-color meta —
-           it reliably notices node removal + insertion, so replace the tag outright. */
-        var m = document.querySelector('meta[name="theme-color"]');
-        if (m && m.parentNode) m.parentNode.removeChild(m);
-        m = document.createElement('meta');
-        m.setAttribute('name', 'theme-color');
-        m.setAttribute('content', c);
-        document.head.appendChild(m);
-      }
       function pauseMain() {
         savedScroll = window.pageYOffset || 0;
         savedView = currentView();
