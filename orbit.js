@@ -678,10 +678,13 @@
           if (zoom > SHELL) {
             // ORB mode: spin like a globe. Horizontal = free longitude; vertical = gentler and CLAMPED
             // latitude, so multidirectional exploring never tips the orb upside down.
-            userYaw -= dx * ROT_ORB;
-            userPitch = THREE.MathUtils.clamp(userPitch - dy * ROT_ORB_V, -MAX_PITCH, MAX_PITCH);
-            yawVel += (-dx * ROT_ORB / dt - yawVel) * 0.35;         // horizontal fling carries
-            pitchVel += (-dy * ROT_ORB_V / dt - pitchVel) * 0.35;
+            // TOUCH follows the finger (direct manipulation — the orb's face tracks the drag);
+            // mouse keeps the trackball convention the desktop feel was tuned on.
+            const dir = (e.pointerType === 'touch') ? 1 : -1;
+            userYaw += dir * dx * ROT_ORB;
+            userPitch = THREE.MathUtils.clamp(userPitch + dir * dy * ROT_ORB_V, -MAX_PITCH, MAX_PITCH);
+            yawVel += (dir * dx * ROT_ORB / dt - yawVel) * 0.35;    // fling carries, same handedness
+            pitchVel += (dir * dy * ROT_ORB_V / dt - pitchVel) * 0.35;
           } else {
             // NUCLEUS mode: look around (accumulate into the look target; inverted axes, no timing math)
             cam.tYaw += dx * ROT;
