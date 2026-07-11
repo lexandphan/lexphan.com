@@ -13,10 +13,25 @@ import os, sys
 from PIL import Image
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-COUNTS = {"tahoe": 61, "cdmxye": 22, "playa": 22, "pdt": 28, "splash": 51, "kyoto": 43,
-          "tokyo": 30, "sapporo": 13, "pv": 84, "cdmx": 33, "oax": 13, "bali": 40, "japan": 31}
 LONG_EDGE = 1280
 QUALITY = 72
+
+def scan_albums(root):
+    """Counts from the filesystem (contiguous 1..N.webp per album folder)."""
+    albums = {}
+    imgdir = os.path.join(root, "images")
+    for folder in sorted(os.listdir(imgdir)):
+        d = os.path.join(imgdir, folder)
+        if not os.path.isdir(d):
+            continue
+        n = 0
+        while os.path.exists(os.path.join(d, f"{n + 1}.webp")):
+            n += 1
+        if n:
+            albums[folder] = n
+    return albums
+
+COUNTS = scan_albums(ROOT)
 
 made = skipped = failed = 0
 src_bytes = out_bytes = 0

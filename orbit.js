@@ -68,8 +68,9 @@
                                // fog recedes far frames into shadow toward this same tone
         const FOLDERS = ['tahoe','cdmxye','playa','pdt','splash','kyoto','tokyo','sapporo','pv','cdmx','oax','bali','japan'];
         const FRAMES_PER = SMALL ? 5 : 9;    // size of the LIVE (resident) set: ~65 mobile / ~117 desktop
-        // per-album image counts (mirror /images/<album>/N.webp) — the full library streamed in phase 2
-        const COUNTS = { tahoe:61, cdmxye:22, playa:22, pdt:28, splash:51, kyoto:43, tokyo:30, sapporo:13, pv:84, cdmx:33, oax:13, bali:40, japan:31 };
+        // per-album image counts from the generated album-aspects.js manifest (single source of truth)
+        const COUNTS = {};
+        FOLDERS.forEach((f) => { COUNTS[f] = ((window.ALBUM_ASPECTS || {})[f] || []).length; });
         const MAX_EDGE = SMALL ? 640 : 1024; // trimmed for the higher frame count
         const FOG_DENSITY = 0.0175;
         const FOV = 56;
@@ -1012,6 +1013,15 @@
                 m.quaternion.copy(cloudQuat).multiply(u.baseQuat);
                 m.rotateZ(Math.sin(cloudT * u.bobSpeed * 0.7 + u.bobPhase) * u.rollAmp);
               }
+            } else if (focusMode && m === focused) {
+              // reduced motion: focus FRAMING is state, not motion — square the viewed photo to the
+              // camera instantly (without this, focus only dimmed the field and never showed the photo)
+              forward.subVectors(camera.position, m.position).normalize();
+              _fwd2.set(0, 0, 1).applyQuaternion(m.quaternion);
+              const sgn = _fwd2.dot(forward) >= 0 ? 1 : -1;
+              _fo.position.copy(m.position);
+              _fo.lookAt(m.position.x + forward.x * sgn, m.position.y + forward.y * sgn, m.position.z + forward.z * sgn);
+              m.quaternion.copy(_fo.quaternion);
             }
             // focus draws the clicked frame ON TOP (ignores depth) so nothing occludes it
             const wantDepth = !(focusMode && m === focused);
@@ -1051,9 +1061,11 @@
             const eased = rev * rev * (3 - 2 * rev);
             un.uReveal.value = eased;
             let s = (REDUCED ? 1 : (0.9 + 0.1 * eased) * (1 + u.hover * 0.05)) * u.swapScale;
-            if (!REDUCED && focusMode && focusOrbMode && m === focused) {
+            if (focusMode && focusOrbMode && m === focused) {
               // ORB viewer: the camera stays outside, so enlarge the frame to FILL the view
               // exactly like the nucleus viewer's fly-in does (same 74%/82% framing math).
+              // Runs under reduced motion too — the END STATE is the feature, not the transition
+              // (u.focus eases near-instantly there, so the enlargement effectively snaps).
               const half = THREE.MathUtils.degToRad(FOV) * 0.5;
               const distNuc = (Math.max(u.baseH / 0.74, u.baseW / (0.82 * camera.aspect)) * 0.5) / Math.tan(half);
               const fillS = (camera.position.distanceTo(m.position) / distNuc) * u.swapScale;

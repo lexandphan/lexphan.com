@@ -125,7 +125,8 @@
       a.className = 'print';
       a.href = '/album/' + cover.folder + '/';
       a.setAttribute('data-nav', 'album');
-      a.setAttribute('aria-label', 'View album');
+      /* distinct, anonymous accessible names (all 13 were identical "View album") */
+      a.setAttribute('aria-label', 'View album — ' + (ALBUM_META[cover.folder] || '') + ' photographs');
       a._folder = cover.folder;
       a._aspect = cover.aspect;
 
@@ -157,7 +158,9 @@
 
       var idx = document.createElement('span');
       idx.className = 'idx';
-      idx.textContent = pad(index + 1);
+      /* the album's photo count — "a set lives here" — instead of a shuffle-order
+         number that implied a sequence the masonry scrambles on every reshuffle */
+      idx.textContent = String(ALBUM_META[cover.folder] || '');
       a._idxEl = idx;
       a.appendChild(idx);
 
@@ -381,6 +384,11 @@
     var curtainsBuilt = false;
     var curtainsOK = false;
     var hoverCount = 0;
+    var glIdleFrames = 0;   /* consecutive settled frames; past ~90 the canvas stops redrawing */
+    function wakeCurtains() {
+      glIdleFrames = 0;
+      if (curtainsOK && curtains && curtainsActive()) { try { curtains.enableDrawing(); } catch (e) {} }
+    }
     var scrollEffect = 0;
     var lastScrollY = (window.pageYOffset || 0);
 
@@ -395,6 +403,7 @@
       var dv = y - lastScrollY;
       lastScrollY = y;
       scrollEffect = clamp(scrollEffect + dv * 0.006, -0.6, 0.6);
+      wakeCurtains();   /* resume drawing if idle-parked */
     }
 
     function initCurtains() {
@@ -418,11 +427,31 @@
         document.documentElement.classList.remove('curtains-on');
       });
       curtains.onContextLost(function () {
+        /* show the DOM covers while the context is gone — if restoration never lands,
+           the grid must not sit blank under a dead canvas */
+        document.documentElement.classList.remove('curtains-on');
         try { curtains.restoreContext(); } catch (e) {}
+      });
+      curtains.onContextRestored(function () {
+        if (curtainsOK && currentView() === 'home') {
+          document.documentElement.classList.add('curtains-on');
+          try { repositionPlanes(); } catch (e) {}
+        }
       });
       curtains.onRender(function () {
         scrollEffect *= 0.90;
         if (Math.abs(scrollEffect) < 0.001) scrollEffect = 0;
+        /* idle gate: when nothing animates (no hover/dim/reveal easing, no scroll momentum,
+           no reshuffle), stop redrawing — identical frames were burning GPU/battery forever */
+        var busy = scrollEffect !== 0 || hoverCount > 0 || reshuffling || !revealDone;
+        if (!busy) {
+          for (var i = 0; i < planes.length; i++) {
+            var p = planes[i];
+            if (p._h > 0.002 || p._dim > 0.002 || Math.abs(p._revealTarget - p._reveal) > 0.002) { busy = true; break; }
+          }
+        }
+        glIdleFrames = busy ? 0 : glIdleFrames + 1;
+        if (glIdleFrames > 90) { try { curtains.disableDrawing(); } catch (e) {} }   /* ~1.5s settled */
       });
 
       planes = [];
@@ -504,6 +533,7 @@
     /* curtains.resize() + per-plane reposition — call after any layout change */
     function repositionPlanes() {
       if (!curtainsOK || !curtains) return;
+      wakeCurtains();
       /* re-sync curtains' internal scroll to the REAL scroll first: after the scroll-locked orbit
          session its tracked value can be stale, which offsets every plane by the scroll amount
          (the scrambled/overlapping masonry). Then re-measure + re-glue each plane. */
@@ -646,6 +676,7 @@
         if (reduce || !fine) return;
         node.classList.add('is-hover');
         if (curtainsActive()) {
+          wakeCurtains();   /* the canvas may be idle-parked */
           if (node._plane) node._plane._ht = 1;   /* shader IS the hover effect — no transform */
           hoverCount++;
         } else {
@@ -741,7 +772,13 @@
     });
 
     /* ================= ALBUM ================= */
-    var ALBUM_META = { tahoe:61, cdmxye:22, playa:22, pdt:28, splash:51, kyoto:43, tokyo:30, sapporo:13, pv:84, cdmx:33, oax:13, bali:40, japan:31 };
+    /* single source of truth: album counts derive from the generated album-aspects.js
+       manifest (gen-aspects.py reads the filesystem), so adding photos can't drift */
+    var ALBUM_META = (function () {
+      var m = {}, A = window.ALBUM_ASPECTS || {};
+      for (var k in A) m[k] = A[k].length;
+      return m;
+    })();
     function albumFromLocation() {
       var m = (location.pathname || '').match(/\/album\/([a-z0-9]+)\/?$/i);
       return (m && ALBUM_META[m[1]]) ? m[1] : null;
@@ -937,6 +974,7 @@
     var lbLoadToken = 0;
     function masterSrc(i) { return '/images/' + ALBUM_FOLDER + '/' + (i + 1) + '.webp'; }
     function setFrame(i, animate) {
+      lbResetZoom();                           /* each frame starts unzoomed */
       var img = frames[i].querySelector('img');
       lbImg.src = img.currentSrc || img.src;   /* instant: the already-decoded grid rendition */
       lbImg.alt = img.alt;
@@ -1002,6 +1040,7 @@
         app.removeAttribute('inert');
         document.documentElement.classList.remove('lb-open');
         setThemeColor('#F4F1EA');
+        lbResetZoom();
         if (lenis) { try { lenis.start(); } catch (e) {} }
         if (lastTrigger) lastTrigger.focus();
       };
@@ -1044,18 +1083,79 @@
       else if (e.key === 'Tab') { trap(e); }
     }, true);
 
-    /* touch: swipe left/right through frames */
+    /* touch: swipe left/right through frames (suppressed while zoomed / multi-touch) */
     var tsx = null, tsy = null;
     lightbox.addEventListener('touchstart', function (e) {
+      if (e.touches.length > 1) { tsx = tsy = null; return; }   /* pinches never read as swipes */
       tsx = e.changedTouches[0].clientX; tsy = e.changedTouches[0].clientY;
     }, { passive: true });
     lightbox.addEventListener('touchend', function (e) {
-      if (tsx === null) return;
+      if (tsx === null || lbZoom > 1) { if (e.touches.length === 0 && lbZoom <= 1) { tsx = tsy = null; } return; }
       var dx = e.changedTouches[0].clientX - tsx;
       var dy = e.changedTouches[0].clientY - tsy;
       tsx = tsy = null;
       if (Math.abs(dx) > 44 && Math.abs(dx) > Math.abs(dy)) go(dx < 0 ? 1 : -1);
     }, { passive: true });
+
+    /* ---- zoom: pinch + double-tap into the full-res master (touch); click-halves paging (desktop) ---- */
+    var lbZoom = 1, lbPanX = 0, lbPanY = 0;
+    var pinchD0 = 0, pinchZ0 = 1, panSX = 0, panSY = 0, lastTapT = 0;
+    function touchDist(t) { return Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY); }
+    function lbApply(animate) {
+      var mx = (lbZoom - 1) * figure.clientWidth / 2;    /* pan bounds: edges stay pinned to the frame */
+      var my = (lbZoom - 1) * figure.clientHeight / 2;
+      lbPanX = clamp(lbPanX, -mx, mx);
+      lbPanY = clamp(lbPanY, -my, my);
+      lbImg.style.transition = animate ? 'transform .28s cubic-bezier(.2,.7,.2,1)' : '';
+      lbImg.style.transform = (lbZoom === 1) ? '' : 'translate(' + lbPanX + 'px,' + lbPanY + 'px) scale(' + lbZoom + ')';
+    }
+    function lbResetZoom() {
+      lbZoom = 1; lbPanX = lbPanY = 0;
+      lbImg.style.transition = ''; lbImg.style.transform = '';
+    }
+    figure.addEventListener('touchstart', function (e) {
+      if (e.touches.length === 2) {
+        pinchD0 = touchDist(e.touches); pinchZ0 = lbZoom;
+        e.preventDefault();
+      } else if (e.touches.length === 1 && lbZoom > 1) {
+        panSX = e.touches[0].clientX - lbPanX; panSY = e.touches[0].clientY - lbPanY;
+      }
+    }, { passive: false });
+    figure.addEventListener('touchmove', function (e) {
+      if (e.touches.length === 2 && pinchD0 > 0) {
+        lbZoom = clamp(pinchZ0 * (touchDist(e.touches) / pinchD0), 1, 4);
+        lbApply(false); e.preventDefault();
+      } else if (e.touches.length === 1 && lbZoom > 1) {
+        lbPanX = e.touches[0].clientX - panSX; lbPanY = e.touches[0].clientY - panSY;
+        lbApply(false); e.preventDefault();
+      }
+    }, { passive: false });
+    figure.addEventListener('touchend', function (e) {
+      if (e.touches.length < 2) pinchD0 = 0;
+      if (lbZoom < 1.05 && lbZoom !== 1) lbResetZoom();   /* snap back from a near-1 pinch */
+      if (e.touches.length === 0 && e.changedTouches.length === 1) {
+        var now = performance.now();
+        if (now - lastTapT < 300) {   /* double-tap: toggle 1x <-> 2.5x at the tapped point */
+          if (lbZoom > 1) { lbZoom = 1; lbPanX = lbPanY = 0; }
+          else {
+            var r = figure.getBoundingClientRect();
+            lbZoom = 2.5;
+            lbPanX = (r.left + r.width / 2 - e.changedTouches[0].clientX) * (lbZoom - 1);
+            lbPanY = (r.top + r.height / 2 - e.changedTouches[0].clientY) * (lbZoom - 1);
+          }
+          lbApply(true);
+          lastTapT = 0;
+        } else { lastTapT = now; }
+      }
+    });
+    figure.addEventListener('click', function (e) {
+      /* desktop: click the photo's left/right half to page (middle sliver is neutral) */
+      if (!fine || lbZoom !== 1) return;
+      var r = figure.getBoundingClientRect();
+      var x = (e.clientX - r.left) / r.width;
+      if (x < 0.45) go(-1);
+      else if (x > 0.55) go(1);
+    });
 
     /* ---- reshuffle control ---- */
     if (shuffleBtn) shuffleBtn.addEventListener('click', function () { reshuffle(); });
@@ -1241,11 +1341,12 @@
         window.scrollTo(0, savedScroll);
         if (lenis) { try { lenis.start(); } catch (e) {} }
         if (lastScrollY !== undefined) lastScrollY = savedScroll;
-        if (wasCurtains) {
-          /* Rebuild the curtains WebGL layer from scratch — orbit's context can corrupt it, and a
-             mere re-glue can't repair that (it stayed scrambled until a manual reload). Deferred a
-             frame so the scroll restore + reflow settle first; the DOM covers carry the correct grid
-             during the swap. */
+        if (curtainsBuilt) {
+          /* Rebuild the curtains WebGL layer from scratch whenever an instance EXISTED — not just
+             when it was actively shown (wasCurtains): entering orbit from an ALBUM view left the
+             live-but-hidden curtains context exposed to the same corruption, un-rebuilt. Orbit's
+             context pressure can corrupt it, and a mere re-glue can't repair that. Deferred a frame
+             so the scroll restore + reflow settle; the DOM covers carry the grid during the swap. */
           requestAnimationFrame(function () {
             rebuildCurtains();
             if (ST) { try { ST.refresh(); } catch (e) {} }

@@ -145,6 +145,7 @@
 
       --gap:  clamp(14px, 1.8vw, 26px);
       --maxw: 1240px;
+      --radius-print: 2px;   /* one radius for every print surface (covers, frames, lightbox) */
       --ease: cubic-bezier(.2, .7, .2, 1);
 
       --sans: 'Bricolage Grotesque', system-ui, -apple-system, 'Segoe UI', sans-serif;
@@ -202,6 +203,14 @@
       -webkit-backdrop-filter: blur(10px) saturate(1.05);
       backdrop-filter: blur(10px) saturate(1.05);
       border-bottom: 1px solid var(--line);
+    }
+    /* wide screens: snap the wordmark/icons to the content grid's edges instead of floating
+       in the dead space outside the composition */
+    @media (min-width: 1331px) {
+      header.chrome {
+        padding-left: calc((100vw - var(--maxw)) / 2);
+        padding-right: calc((100vw - var(--maxw)) / 2);
+      }
     }
     .wordmark {
       font-family: var(--hand);
@@ -290,7 +299,7 @@
       position: relative;
       display: block;
       width: 100%;
-      border-radius: 3px;
+      border-radius: var(--radius-print);
       overflow: hidden;
       background: var(--paper-deep);
       box-shadow: var(--shadow);
@@ -339,7 +348,7 @@
       font-size: 10px;
       letter-spacing: 0.14em;
       color: var(--paper);
-      background: rgba(23, 19, 15, 0.44);
+      background: rgba(23, 19, 15, 0.6);   /* scrim holds ≥4.5:1 even over bright skies */
       -webkit-backdrop-filter: blur(4px);
       backdrop-filter: blur(4px);
       padding: 3px 8px;
@@ -399,7 +408,7 @@
       margin: 0 0 var(--gap);
       padding: 6px;
       border: 0;
-      border-radius: 2px;
+      border-radius: var(--radius-print);
       background: var(--print);
       box-shadow: var(--shadow);
       cursor: zoom-in;
@@ -410,17 +419,21 @@
       transition: transform .5s var(--ease), box-shadow .5s var(--ease);
     }
     .frame img { width: 100%; height: auto; border-radius: 1px; }
+    /* same chip anatomy as the home cover badge (dark glass pill, bottom-left) —
+       one component voice, and it can't sink into bright photo content */
     .frame .fnum {
       position: absolute;
-      right: 10px;
-      bottom: 10px;
+      left: 12px;
+      bottom: 12px;
       font-family: var(--mono);
-      font-size: 11px;
-      letter-spacing: 0.08em;
-      color: var(--ink-2);
-      background: rgba(244, 241, 234, 0.86);
-      padding: 2px 6px;
-      border-radius: 3px;
+      font-size: 10px;
+      letter-spacing: 0.14em;
+      color: var(--paper);
+      background: rgba(23, 19, 15, 0.6);
+      -webkit-backdrop-filter: blur(4px);
+      backdrop-filter: blur(4px);
+      padding: 3px 8px;
+      border-radius: 999px;
       opacity: 0;
       transition: opacity .35s var(--ease);
       pointer-events: none;
@@ -594,7 +607,7 @@
       display: grid;
       place-items: center;
     }
-    .lb-figure { margin: 0; max-width: min(92vw, 1120px); }
+    .lb-figure { margin: 0; max-width: min(92vw, 1120px); overflow: hidden; touch-action: none; }   /* zoomed photo clips to the print */
     .lb-figure img {
       display: block;
       max-width: 100%;
@@ -603,7 +616,7 @@
       height: auto;
       padding: 8px;
       background: var(--print);
-      border-radius: 2px;
+      border-radius: var(--radius-print);
       box-shadow: var(--shadow-lift);
     }
     .lb-nav, .lb-close {
@@ -639,9 +652,14 @@
       left: 50%;
       transform: translateX(-50%);
       font-family: var(--mono);
-      font-size: 13px;
-      letter-spacing: 0.16em;
-      color: rgba(244, 241, 234, 0.82);
+      font-size: 11px;
+      letter-spacing: 0.14em;
+      color: var(--paper);
+      background: rgba(23, 19, 15, 0.6);
+      -webkit-backdrop-filter: blur(4px);
+      backdrop-filter: blur(4px);
+      padding: 4px 10px;
+      border-radius: 999px;
     }
 
     /* any coarse pointer (tablets included): the badge IS the tap affordance — hover never fires */
@@ -836,11 +854,17 @@
 
     #orbit-overlay #ob-chrome { position: absolute; inset: 0; z-index: 6; pointer-events: none; opacity: 0; transition: opacity 1.2s var(--ease) .3s; }
     #orbit-overlay #ob-chrome.ready { opacity: 1; }
+    /* same metrics + position as the site header wordmark, so the mark registers as the
+       one fixed anchor during the orbit reveal crossfade (only the color inverts) */
     #orbit-overlay .ob-wordmark {
-      position: absolute; top: calc(clamp(16px, 2.4vw, 30px) + env(safe-area-inset-top, 0px)); left: clamp(18px, 2.6vw, 34px);
-      pointer-events: auto; font-family: var(--hand); font-size: clamp(30px, 4vw, 46px);
-      line-height: 1; color: var(--paper); text-decoration: none; letter-spacing: .3px;
+      position: absolute; top: calc(clamp(13px, 1.9vw, 20px) + env(safe-area-inset-top, 0px)); left: clamp(18px, 4vw, 44px);
+      pointer-events: auto; font-family: var(--hand); font-weight: 600;
+      font-size: clamp(1.85rem, 3.4vw, 2.35rem); letter-spacing: -0.01em; padding: 2px 4px;
+      line-height: 1; color: var(--paper); text-decoration: none;
       user-select: none; text-shadow: 0 1px 3px rgba(0,0,0,.35);
+    }
+    @media (min-width: 1331px) {
+      #orbit-overlay .ob-wordmark { left: calc((100vw - var(--maxw)) / 2); }
     }
     #orbit-overlay #ob-info-toggle {
       position: absolute; top: calc(clamp(14px, 2.2vw, 28px) + env(safe-area-inset-top, 0px)); right: clamp(16px, 2.4vw, 30px);

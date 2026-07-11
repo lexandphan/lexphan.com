@@ -56,5 +56,15 @@ def main():
         open(os.path.join(d, "index.html"), "w").write(TEMPLATE.format(name=name, body=body))
     print("generated", len(ALBUMS), "album bootstraps")
 
+    # sitemap + robots stay in sync with the album list
+    urls = ["https://lexphan.com/"] + [f"https://lexphan.com/album/{n}/" for n in ALBUMS]
+    sm = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+    sm += "".join(f"  <url><loc>{u}</loc></url>\n" for u in urls)
+    sm += "</urlset>\n"
+    open(os.path.join(ROOT, "sitemap.xml"), "w").write(sm)
+    open(os.path.join(ROOT, "robots.txt"), "w").write(
+        "User-agent: *\nAllow: /\nSitemap: https://lexphan.com/sitemap.xml\n")
+    print("wrote sitemap.xml (%d urls) + robots.txt" % len(urls))
+
 if __name__ == "__main__":
     main()
