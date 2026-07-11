@@ -559,6 +559,13 @@
     function leaveHome() {
       if (curtainsOK && curtains) { try { curtains.disableDrawing(); } catch (e) {} }
       document.documentElement.classList.remove('curtains-on');
+      /* drain hover state: a cover is always hovered when it's clicked, and its mouseleave
+         fires after curtains-on is gone — without this the leaked _ht/hoverCount left the
+         whole home grid dimmed 12% (and one cover popped) on every return home. */
+      hoverCount = 0;
+      planes.forEach(function (p) { if (p) p._ht = 0; });
+      printNodes.forEach(function (n) { n.classList.remove('is-hover'); stopPeek(n); });
+      masonry.classList.remove('is-focusing');
     }
 
     /* ---- FLIP reshuffle: the signature affordance ---- */
@@ -834,13 +841,20 @@
     /* DOM-only view switch (no URL/History side effects) — used for the initial render,
        for popstate restores, and as the last step of navigate() below. */
     var prevView = null;
+    var homeScroll = 0;   /* masonry position, restored when returning home from an album */
     function navigateView(v) {
       document.documentElement.setAttribute('data-view', v);
       surfaces.forEach(function (s) { s.hidden = (s.getAttribute('data-surface') !== v); });
 
       if (v !== prevView) {
-        if (prevView === 'home') leaveHome();      /* pause WebGL when leaving home */
-        scrollTop();
+        if (prevView === 'home') { homeScroll = window.pageYOffset || 0; leaveHome(); }  /* pause WebGL when leaving home */
+        if (v === 'home' && prevView === 'album') {
+          /* return to where the visitor left the masonry instead of dumping them at the top */
+          window.scrollTo(0, homeScroll);
+          if (lenis) { try { lenis.scrollTo(homeScroll, { immediate: true, force: true }); } catch (e) {} }
+        } else {
+          scrollTop();
+        }
         if (v === 'home')  { ensureHome(); enterHome(); }
         if (v === 'album') primeAlbum();
 
@@ -875,7 +889,12 @@
       e.preventDefault();
       navigate(t.getAttribute('data-nav'), t._folder);
     });
+    /* set by the orbit section (nested scope): returns true when it consumed the pop */
+    var orbitPop = null;
     window.addEventListener('popstate', function (e) {
+      /* overlays first: Back closes the open layer instead of switching the view under it */
+      if (lightbox.classList.contains('open')) dismissLightbox();
+      if (orbitPop && orbitPop()) return;   /* orbit exit — the view beneath it never changed */
       var st = e.state || {};
       if (st.view === 'album' && st.album && ALBUM_META[st.album]) {
         switchAlbum(st.album);
@@ -917,6 +936,9 @@
       lightbox.setAttribute('aria-hidden', 'false');
       app.setAttribute('inert', '');
       document.documentElement.classList.add('lb-open');
+      /* sentinel history entry so Back closes the viewer (the mobile-native gesture)
+         instead of switching the view underneath the open modal */
+      try { history.pushState({ view: 'album', album: ALBUM_FOLDER, overlay: 'lb' }, '', location.pathname + location.search); } catch (e) {}
       if (lenis) { try { lenis.stop(); } catch (e) {} }
       if (!reduce) {
         if (GS) {
@@ -937,7 +959,13 @@
       setFrame(curIdx, true);
     }
 
+    /* UI close consumes the sentinel entry via history.back() → popstate → dismissLightbox(),
+       so the history stack stays consistent whichever way the viewer is closed. */
     function closeLightbox() {
+      if (history.state && history.state.overlay === 'lb') { history.back(); return; }
+      dismissLightbox();
+    }
+    function dismissLightbox() {
       var finish = function () {
         lightbox.classList.remove('open');
         lightbox.setAttribute('aria-hidden', 'true');
@@ -972,12 +1000,15 @@
       else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
     }
 
-    lightbox.addEventListener('keydown', function (e) {
+    /* document-level so Esc/arrows keep working even when focus has left the lightbox
+       (e.g. after clicking the photo or backdrop, which aren't focusable) */
+    document.addEventListener('keydown', function (e) {
+      if (!lightbox.classList.contains('open')) return;
       if (e.key === 'Escape') { e.preventDefault(); closeLightbox(); }
       else if (e.key === 'ArrowLeft') { e.preventDefault(); go(-1); }
       else if (e.key === 'ArrowRight') { e.preventDefault(); go(1); }
       else if (e.key === 'Tab') { trap(e); }
-    });
+    }, true);
 
     /* touch: swipe left/right through frames */
     var tsx = null, tsy = null;
@@ -1226,6 +1257,7 @@
         pauseMain();
 
         overlay.hidden = false;
+        overlay.setAttribute('aria-hidden', 'false');      /* the overlay IS the page while open (app is inert) */
         void overlay.offsetWidth;                          /* reflow so the fade animates */
         overlay.classList.add('visible');
         warpOut();                                         /* prints fly off as the overlay + loader rise */
@@ -1251,6 +1283,9 @@
       function succeedOrbit() {
         orbitOpen = true; orbitBusy = false;
         bindOrbitControls(true);
+        /* sentinel history entry so Back exits the orbit instead of silently switching
+           the (hidden) view underneath the overlay */
+        try { history.pushState({ view: savedView, album: (savedView === 'album' ? ALBUM_FOLDER : null), overlay: 'orbit' }, '', location.pathname + location.search); } catch (e) {}
       }
 
       /* graceful failure: dissolve the overlay, warp the prints back, quiet cue */
@@ -1259,24 +1294,38 @@
         overlay.classList.remove('visible');
         setTimeout(function () {
           overlay.hidden = true;
+          overlay.setAttribute('aria-hidden', 'true');
           warpIn(function () { orbitBusy = false; });
           restoreMain();
           nopeCue();
         }, reduce ? 160 : 420);
       }
 
+      /* UI exits (Esc / wordmark) consume the sentinel entry via history.back() → popstate →
+         exitOrbitNow(), so the stack stays consistent however the orbit is left. */
       function exitOrbit() {
+        if (!orbitOpen || orbitBusy) return;
+        if (history.state && history.state.overlay === 'orbit') { history.back(); return; }
+        exitOrbitNow();
+      }
+      function exitOrbitNow() {
         if (!orbitOpen || orbitBusy) return;
         orbitBusy = true;
         bindOrbitControls(false);
         overlay.classList.remove('visible');             /* orbit field fades with the overlay */
         setTimeout(function () {
           overlay.hidden = true;
+          overlay.setAttribute('aria-hidden', 'true');
           try { window.orbitApp.destroy(); } catch (e) {}
           restoreMain();
           warpIn(function () { orbitOpen = false; orbitBusy = false; });
         }, reduce ? 160 : 620);
       }
+      /* bridge for the outer popstate handler (orbitOpen lives in this scope) */
+      orbitPop = function () {
+        if (orbitOpen || orbitBusy) { exitOrbitNow(); return true; }
+        return false;
+      };
 
       /* ---- long-press detection (mouse / pen / touch via Pointer Events) ---- */
       function startHold(e) {

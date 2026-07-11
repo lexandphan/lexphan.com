@@ -603,7 +603,8 @@
     #site-info.open { opacity: 1; visibility: visible; transform: none; }
     #site-info .si-handle { display: none; }
     #site-info .row { padding: 9px 0; border-top: 1px solid var(--line); }
-    #site-info .row:first-of-type { border-top: none; padding-top: 2px; }
+    /* .si-handle is the first div, so :first-of-type never matched a row — anchor on the handle */
+    #site-info .si-handle + .row { border-top: none; padding-top: 2px; }
     #site-info .lbl {
       font-family: var(--mono); font-size: 10px; letter-spacing: .16em;
       text-transform: uppercase; color: var(--accent); display: block; margin-bottom: 5px;
