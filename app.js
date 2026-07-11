@@ -740,6 +740,9 @@
     var frames = [];
 
     function buildAlbum() {
+      /* kill the outgoing album's scroll-reveal triggers before detaching its frames —
+         otherwise each album visit leaks a batch of dead ScrollTriggers re-measured forever */
+      if (ST) { try { ST.getAll().forEach(function (t) { if (t.trigger && albumGrid.contains(t.trigger)) t.kill(); }); } catch (e) {} }
       var html = '';
       var aspects = (window.ALBUM_ASPECTS && window.ALBUM_ASPECTS[ALBUM_FOLDER]) || null;
       for (var i = 1; i <= ALBUM_COUNT; i++) {
@@ -761,7 +764,9 @@
         });
       });
     }
-    buildAlbum();
+    /* built lazily: on album deep-links it builds during the initial render below; on home
+       visits it waits for the first album navigation (the old unconditional boot call made
+       every home load eagerly fetch the fallback album's first four photos into a hidden grid) */
 
     /* switch which album the album-view renders (used by in-app nav + popstate);
        re-arms the reveal stagger so each newly-entered album animates in */
@@ -856,7 +861,7 @@
           scrollTop();
         }
         if (v === 'home')  { ensureHome(); enterHome(); }
-        if (v === 'album') primeAlbum();
+        if (v === 'album') { if (!frames.length) buildAlbum(); primeAlbum(); }
 
         /* Lenis smooth-scroll stays on for every view; it drives window scroll so
            curtains keeps tracking planes on home. Only orbit / lightbox pause it. */

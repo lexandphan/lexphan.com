@@ -758,8 +758,9 @@
         });
         on(document.getElementById('ob-reset'), 'click', recenter);
 
-        // hint
+        // hint — on touch the dive gesture is pinch, not scroll
         const hint = document.getElementById('ob-hint');
+        if (SMALL) hint.textContent = 'drag to spin  ·  pinch to dive in';
         let hintTimer = null, interacted = false;
         function showHint() { hint.classList.add('show'); hintTimer = setTimeout(hideHint, 6000); }
         function hideHint() { hint.classList.remove('show'); hint.classList.add('hide'); if (hintTimer) clearTimeout(hintTimer); }

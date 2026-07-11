@@ -21,6 +21,9 @@ TEMPLATE = """<!doctype html>
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://lexphan.com/album/{name}/" />
   <link rel="icon" type="image/svg+xml" href="/assets/phanny-favicon.svg" />
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="/vendor/fonts/WnznHAc5bAfYB2QRah7pcpNvOx-pjSx6eIWpYT5Kmgq3sw.woff2" />
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="/vendor/fonts/3y9K6as8bTXq_nANBjzKo3IeZx8z6up5BeSl9D4dj_x9PpZBMlGIInHWVyNJ.woff2" />
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="/vendor/fonts/i7dPIFZifjKcF5UAWdDRYEF8RXi4EwQ.woff2" />
   <link rel="stylesheet" href="/app.css" />
 </head>
 <body data-album="{name}">
