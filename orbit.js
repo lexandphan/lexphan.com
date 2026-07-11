@@ -240,7 +240,7 @@
 
         // ---- the full library IN ALBUM ORDER (album by album, numbered within) — canonical for focus stepping
         const ALBUM_SEQ = [];
-        FOLDERS.forEach((f) => { const n = COUNTS[f] || 0; for (let i = 1; i <= n; i++) ALBUM_SEQ.push({ folder: f, idx: i, count: n, url: `/images/${f}/${i}.webp` }); });
+        FOLDERS.forEach((f) => { const n = COUNTS[f] || 0; for (let i = 1; i <= n; i++) ALBUM_SEQ.push({ folder: f, idx: i, count: n, url: `/images/${f}/g/${i}.webp` }); });   // grid renditions: textures are capped at MAX_EDGE anyway
         const N_SEQ = ALBUM_SEQ.length;
         // streaming hands out a SHUFFLED order of indices into ALBUM_SEQ (variety in the live cloud)
         const POOL_ORDER = ALBUM_SEQ.map((_, i) => i);

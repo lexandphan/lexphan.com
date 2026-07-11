@@ -83,7 +83,7 @@
     ].map(function (c) {
       return {
         folder: c.p.split('/')[0],
-        src: '/images/' + c.p + '.webp',
+        src: '/images/' + c.p.replace('/', '/g/') + '.webp',   /* grid-size rendition; masters stay lightbox-only */
         w: c.w, h: c.h,
         aspect: c.w / c.h
       };
@@ -663,7 +663,7 @@
       var wrap = node._peek, a = node._pkA, b = node._pkB;
       if (!wrap) return;                 /* no peek overlay in WebGL-capable builds */
       if (!node._pkList) {
-        node._pkList = ['1', '2', '3'].map(function (n) { return '/images/' + node._folder + '/' + n + '.webp'; });
+        node._pkList = ['1', '2', '3'].map(function (n) { return '/images/' + node._folder + '/g/' + n + '.webp'; });
         node._pkList.forEach(function (u) { var im = new Image(); im.src = u; });
       }
       wrap.style.opacity = '1';
@@ -749,7 +749,7 @@
         var ar = (aspects && aspects[i - 1]) ? ' style="aspect-ratio:' + aspects[i - 1] + '"' : '';
         html +=
           '<button class="frame' + pinned + '" type="button" data-i="' + (i - 1) + '">' +
-            '<img src="/images/' + ALBUM_FOLDER + '/' + i + '.webp" alt="Photograph ' + pad(i) + '" loading="' + load + '" decoding="async"' + ar + ' />' +
+            '<img src="/images/' + ALBUM_FOLDER + '/g/' + i + '.webp" alt="Photograph ' + pad(i) + '" loading="' + load + '" decoding="async"' + ar + ' />' +
             '<span class="fnum">' + pad(i) + ' / ' + ALBUM_COUNT + '</span>' +
           '</button>';
       }
@@ -917,14 +917,26 @@
     var curIdx = 0;
     var lastTrigger = null;
 
+    var lbLoadToken = 0;
+    function masterSrc(i) { return '/images/' + ALBUM_FOLDER + '/' + (i + 1) + '.webp'; }
     function setFrame(i, animate) {
       var img = frames[i].querySelector('img');
-      lbImg.src = img.currentSrc || img.src;
+      lbImg.src = img.currentSrc || img.src;   /* instant: the already-decoded grid rendition */
       lbImg.alt = img.alt;
+      /* swap in the full-res master once it arrives (token-guarded against fast paging) */
+      var token = ++lbLoadToken;
+      var hi = new Image();
+      hi.onload = function () { if (token === lbLoadToken) lbImg.src = hi.src; };
+      hi.src = masterSrc(i);
       lbCounter.textContent = pad(i + 1) + ' / ' + frames.length;
       if (animate && !reduce) {
         if (GS) GS.fromTo(lbImg, { opacity: 0 }, { opacity: 1, duration: 0.22, ease: 'power1.out' });
         else if (lbImg.animate) lbImg.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 220, easing: 'ease' });
+      }
+      /* warm the neighbours so arrows/swipes feel instant */
+      if (frames.length > 1) {
+        new Image().src = masterSrc((i + 1) % frames.length);
+        new Image().src = masterSrc((i - 1 + frames.length) % frames.length);
       }
     }
 

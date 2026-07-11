@@ -174,6 +174,7 @@ def main():
         return
 
     os.makedirs(images_dir, exist_ok=True)
+    os.makedirs(os.path.join(images_dir, "g"), exist_ok=True)
     cover_src = None
     total_kb = 0
     for i, s in enumerate(sources):
@@ -181,6 +182,10 @@ def main():
         im = load_web(s, a.max)
         out = os.path.join(images_dir, f"{idx}.webp")
         im.save(out, "WEBP", quality=a.quality, method=6)
+        # grid-size rendition (g/): what the album grid / home covers / orbit actually load
+        g = im.copy()
+        g.thumbnail((1280, 1280), Image.LANCZOS)
+        g.save(os.path.join(images_dir, "g", f"{idx}.webp"), "WEBP", quality=72, method=6)
         kb = os.path.getsize(out) / 1024
         total_kb += kb
         if idx == a.cover:
