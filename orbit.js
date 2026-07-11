@@ -536,16 +536,20 @@
           // random pick among the nearest few: flights stay short but the path never falls into a cycle
           return cands[Math.floor(Math.random() * Math.min(4, cands.length))];
         }
-        function loadFocusImage(si, mesh) {   // load ALBUM_SEQ[si] into `mesh` (ignore stale loads)
+        // Load ALBUM_SEQ[si] into `mesh` FIRST, and only then hand focus to it (via done()).
+        // Retargeting before the texture landed flashed the frame's old pool image — a photo
+        // from a different album — front-and-center until the load finished.
+        function loadFocusImage(si, mesh, done) {
           const token = ++focusLoadToken;
           swapLoader.load(ALBUM_SEQ[si].url, (img) => {
-            if (disposed || token !== focusLoadToken || !focusMode || mesh !== focused) return;
+            if (disposed || token !== focusLoadToken || !focusMode) return;
             const u = mesh.userData, tex = makeTexture(img);
             if (u.tex) u.tex.dispose();
             u.tex = tex; u.aspect = img.width / img.height; u.seqIndex = si;
             u.baseW = u.baseH * u.aspect;
             mesh.material.uniforms.uMap.value = tex;
             mesh.material.uniforms.uAspect.value = u.aspect;
+            if (done) done();
           }, undefined, () => {});
         }
         // set the orb-spin target that rotates `focused` to the FRONT (toward the camera) for viewing
@@ -596,14 +600,15 @@
         function stepFocus(dir) {   // tour the album IN ORDER: fly to a nearby frame carrying the next photo
           if (!focusMode || !focused) return;
           focusSeq = (focusSeq + dir + N_SEQ) % N_SEQ;
+          updateCounter();                       // instant feedback; the flight starts when the photo is ready
           const target = nextFocusMesh(focused);
-          target.userData.swapScale = 1;    // don't fly toward a mid-shrink frame
-          focusTrail.push(focused);
-          if (focusTrail.length > 6) focusTrail.shift();   // remember the last ~6 stops
-          focused = target;
-          loadFocusImage(focusSeq, target); // load the next album photo into it
-          if (focusOrbMode) aimFrontToFocus();   // orb: spin to front (nucleus: the camera flies to it)
-          updateCounter();
+          loadFocusImage(focusSeq, target, () => {   // stale swipes are dropped by the token guard
+            target.userData.swapScale = 1;           // don't fly toward a mid-shrink frame
+            focusTrail.push(focused);
+            if (focusTrail.length > 6) focusTrail.shift();   // remember the last ~6 stops
+            focused = target;
+            if (focusOrbMode) aimFrontToFocus();   // orb: spin to front (nucleus: the camera flies to it)
+          });
         }
         function updateCounter() {   // position WITHIN the current album (anonymous — no album name)
           if (!focusMode) return;
