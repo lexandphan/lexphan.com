@@ -190,22 +190,23 @@
             if (inPhoto > 0.5) {
               vec2 puv = (uv - lo) / (hi - lo);
               col = texture2D(uMap, puv).rgb;
-              // subtle inner edge shade for depth
+              // subtle inner edge shade for depth (eased OUT on the viewed photo)
               float edge = min(min(puv.x, 1.0 - puv.x), min(puv.y, 1.0 - puv.y));
-              col *= 0.965 + 0.035 * smoothstep(0.0, 0.06, edge);
+              col *= mix(0.965 + 0.035 * smoothstep(0.0, 0.06, edge), 1.0, uFocus);
             } else {
               col = uBorder;
             }
 
-            // hover / focus lift + gentle saturation swell
-            float lift = uHover * 0.13 + uFocus * 0.22;
+            // hover lift + gentle saturation swell — the VIEWED photo stays faithful:
+            // no exposure boost, no saturation push, no scene lighting on it
+            float lift = uHover * 0.13 * (1.0 - uFocus);
             col *= (1.0 + lift);
             float lum = dot(col, vec3(0.299, 0.587, 0.114));
-            col = mix(vec3(lum), col, 1.0 + uHover * 0.10 + uFocus * 0.14);
+            col = mix(vec3(lum), col, 1.0 + uHover * 0.10 * (1.0 - uFocus));
 
-            // faux warm directional light for dimensionality
+            // faux warm directional light for dimensionality (neutralized when focused)
             float nl = clamp(dot(normalize(vWorldN), uLightDir) * 0.5 + 0.5, 0.0, 1.0);
-            col *= 0.92 + 0.10 * nl;
+            col *= mix(0.92 + 0.10 * nl, 1.0, uFocus);
 
             // dim non-focused frames toward haze when a frame is in focus
             col = mix(col, uFog, uDim * 0.62);
@@ -346,9 +347,9 @@
 
         const geo = new THREE.PlaneGeometry(1, 1);
 
-        function makeTexture(img) {
+        function makeTexture(img, edgeCap) {
           const long = Math.max(img.width, img.height);
-          const scale = Math.min(1, MAX_EDGE / long);
+          const scale = Math.min(1, (edgeCap || MAX_EDGE) / long);
           const w = Math.max(1, Math.round(img.width * scale));
           const h = Math.max(1, Math.round(img.height * scale));
           const cv = document.createElement('canvas');
@@ -544,7 +545,9 @@
           const token = ++focusLoadToken;
           swapLoader.load(ALBUM_SEQ[si].url, (img) => {
             if (disposed || token !== focusLoadToken || !focusMode) return;
-            const u = mesh.userData, tex = makeTexture(img);
+            /* the VIEWED photo keeps the rendition's full resolution (1280px) instead of the
+               MAX_EDGE field cap (640 mobile / 1024 desktop) — it fills the screen when focused */
+            const u = mesh.userData, tex = makeTexture(img, 2048);
             if (u.tex) u.tex.dispose();
             u.tex = tex; u.aspect = img.width / img.height; u.seqIndex = si;
             u.baseW = u.baseH * u.aspect;
@@ -566,6 +569,7 @@
           mesh.userData.swapScale = 1;   // never view a frame that's mid-shrink
           focusSeq = mesh.userData.seqIndex;   // begin stepping from THIS photo's spot in its album
           focusTrail.length = 0;
+          loadFocusImage(focusSeq, mesh);      // re-load the tapped photo at full resolution (field textures are capped)
           yawVel = 0; pitchVel = 0;            // a tap ends any fling -> no stale momentum survives the focus session
           if (focusOrbMode) { zoomTarget = Z_ORB; aimFrontToFocus(); }   // orb: stay outside, spin photo to front
           lastInteract = clock.getElapsedTime();
