@@ -80,14 +80,14 @@
     /* ================= HOME covers (baked w/h → aspect known synchronously) ================= */
     var COVERS = [
       { p: 'tahoe/1',   w: 2560, h: 1735 },
-      { p: 'cdmxye/6',  w: 360,  h: 532  },
+      { p: 'cdmxye/6',  w: 1748, h: 2560 },
       { p: 'playa/2',   w: 2765, h: 4069 },
       { p: 'pdt/26',    w: 2274, h: 1536 },
       { p: 'splash/47', w: 1536, h: 2316 },
       { p: 'kyoto/27',  w: 1536, h: 2317 },
       { p: 'tokyo/13',  w: 1536, h: 2317 },
       { p: 'sapporo/2', w: 2318, h: 1536 },
-      { p: 'pv/64',     w: 2292, h: 1536 },
+      { p: 'pv/61',     w: 2292, h: 1536 },   /* was pv/64 before 15/17/18 were removed */
       { p: 'cdmx/9',    w: 1514, h: 2284 },
       { p: 'oax/8',     w: 2048, h: 3089 },
       { p: 'bali/35',   w: 1536, h: 2316 },
