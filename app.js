@@ -83,7 +83,7 @@
       { p: 'cdmxye/6',  w: 1748, h: 2560 },
       { p: 'playa/2',   w: 2765, h: 4069 },
       { p: 'pdt/26',    w: 2274, h: 1536 },
-      { p: 'splash/47', w: 1536, h: 2316 },
+      { p: 'splash/46', w: 1536, h: 2316 },   /* was splash/47 before 40 was removed */
       { p: 'kyoto/25',  w: 1536, h: 2317 },   /* was kyoto/27 before 18/20 were removed */
       { p: 'tokyo/13',  w: 1536, h: 2317 },
       { p: 'sapporo/2', w: 2318, h: 1536 },
