@@ -127,7 +127,6 @@
         const uFog = { value: fogColor };
         const uFogDensity = { value: FOG_DENSITY };
         const uBorder = { value: new THREE.Color(0xFBF7EE) };
-        const uLightDir = { value: new THREE.Vector3(-0.35, 0.55, 0.75).normalize() };
         const uOrb = { value: 0 };        // 0 = nucleus, 1 = orb (front bright -> back recedes)
         const uShellR = { value: R };     // cloud radius
         const uCamDist = { value: Z_ORB };// camera distance from cloud center -> locates the orb's near surface
@@ -156,13 +155,11 @@
           uniform vec3  uFog;
           uniform float uFogDensity;
           uniform vec3  uBorder;
-          uniform vec3  uLightDir;
           uniform float uOrb;      // 0 = nucleus, 1 = orb
           uniform float uShellR;
           uniform float uCamDist;
           varying vec2 vUv;
           varying float vDepth;
-          varying vec3 vWorldN;
 
           void main() {
             vec2 uv = vUv;
@@ -190,9 +187,6 @@
             if (inPhoto > 0.5) {
               vec2 puv = (uv - lo) / (hi - lo);
               col = texture2D(uMap, puv).rgb;
-              // subtle inner edge shade for depth (eased OUT on the viewed photo)
-              float edge = min(min(puv.x, 1.0 - puv.x), min(puv.y, 1.0 - puv.y));
-              col *= mix(0.965 + 0.035 * smoothstep(0.0, 0.06, edge), 1.0, uFocus);
             } else {
               col = uBorder;
             }
@@ -204,9 +198,8 @@
             float lum = dot(col, vec3(0.299, 0.587, 0.114));
             col = mix(vec3(lum), col, 1.0 + uHover * 0.10 * (1.0 - uFocus));
 
-            // faux warm directional light for dimensionality (neutralized when focused)
-            float nl = clamp(dot(normalize(vWorldN), uLightDir) * 0.5 + 0.5, 0.0, 1.0);
-            col *= mix(0.92 + 0.10 * nl, 1.0, uFocus);
+            // (no per-frame grading: photos render at their own exposure — depth fog below is
+            //  the only atmosphere, so near/front frames are effectively untouched)
 
             // dim non-focused frames toward haze when a frame is in focus
             col = mix(col, uFog, uDim * 0.62);
@@ -354,7 +347,9 @@
           const h = Math.max(1, Math.round(img.height * scale));
           const cv = document.createElement('canvas');
           cv.width = w; cv.height = h;
-          cv.getContext('2d').drawImage(img, 0, 0, w, h);
+          const cx = cv.getContext('2d');
+          cx.imageSmoothingQuality = 'high';   // the default bilinear downscale visibly softens/crunches
+          cx.drawImage(img, 0, 0, w, h);
           const tex = new THREE.CanvasTexture(cv);
           tex.colorSpace = THREE.SRGBColorSpace;
           tex.anisotropy = Math.min(4, maxAniso);
@@ -378,7 +373,7 @@
                 uMap: { value: tex }, uAspect: { value: aspect },
                 uHover: { value: 0 }, uFocus: { value: 0 }, uDim: { value: 0 },
                 uReveal: { value: 0 }, uOpacity: { value: 1 },
-                uFog, uFogDensity, uBorder, uLightDir, uOrb, uShellR, uCamDist
+                uFog, uFogDensity, uBorder, uOrb, uShellR, uCamDist
               },
               vertexShader: VERT, fragmentShader: FRAG,
               // OPAQUE: rounded-corner cutout via discard (no blending) -> no back-to-front re-sort flicker.
