@@ -538,6 +538,31 @@
           // random pick among the nearest few: flights stay short but the path never falls into a cycle
           return cands[Math.floor(Math.random() * Math.min(4, cands.length))];
         }
+        // Viewed-photo texture: full resolution, NO mipmaps. The focused quad renders slightly
+        // below texture scale, and trilinear mip-blending makes that noticeably softer than the
+        // DOM lightbox's image scaling — plain linear sampling at near-1:1 matches it.
+        function makeFocusTexture(img) {
+          const cv = document.createElement('canvas');
+          cv.width = img.width; cv.height = img.height;
+          cv.getContext('2d').drawImage(img, 0, 0);
+          const tex = new THREE.CanvasTexture(cv);
+          tex.colorSpace = THREE.SRGBColorSpace;
+          tex.minFilter = THREE.LinearFilter;
+          tex.magFilter = THREE.LinearFilter;
+          tex.generateMipmaps = false;
+          return tex;
+        }
+        // A no-mip 1280px texture SHIMMERS as a tiny field frame — when a mesh stops being the
+        // viewed photo, rebuild its standard capped+mipped field texture from the kept image.
+        function demoteFocusTexture(mesh) {
+          const u = mesh && mesh.userData;
+          if (!u || !u.focusImg) return;
+          const tex = makeTexture(u.focusImg);
+          if (u.tex) u.tex.dispose();
+          u.tex = tex;
+          mesh.material.uniforms.uMap.value = tex;
+          u.focusImg = null;
+        }
         // Load ALBUM_SEQ[si] into `mesh` FIRST, and only then hand focus to it (via done()).
         // Retargeting before the texture landed flashed the frame's old pool image — a photo
         // from a different album — front-and-center until the load finished.
@@ -545,12 +570,11 @@
           const token = ++focusLoadToken;
           swapLoader.load(ALBUM_SEQ[si].url, (img) => {
             if (disposed || token !== focusLoadToken || !focusMode) return;
-            /* the VIEWED photo keeps the rendition's full resolution (1280px) instead of the
-               MAX_EDGE field cap (640 mobile / 1024 desktop) — it fills the screen when focused */
-            const u = mesh.userData, tex = makeTexture(img, 2048);
+            const u = mesh.userData, tex = makeFocusTexture(img);
             if (u.tex) u.tex.dispose();
             u.tex = tex; u.aspect = img.width / img.height; u.seqIndex = si;
             u.baseW = u.baseH * u.aspect;
+            u.focusImg = img;   // kept so the frame can demote to a field texture on unfocus
             mesh.material.uniforms.uMap.value = tex;
             mesh.material.uniforms.uAspect.value = u.aspect;
             if (done) done();
@@ -588,6 +612,7 @@
         function exitFocus() {
           if (!focusMode) return;
           syncCamFromCamera();
+          demoteFocusTexture(focused);   // back to a field texture before it rejoins the cloud
           focusMode = false;
           focused = null;
           focusExitAt = clock.getElapsedTime();   // ease the camera back for a moment (don't snap)
@@ -609,6 +634,7 @@
           const target = nextFocusMesh(focused);
           loadFocusImage(focusSeq, target, () => {   // stale swipes are dropped by the token guard
             target.userData.swapScale = 1;           // don't fly toward a mid-shrink frame
+            demoteFocusTexture(focused);             // the frame we leave returns to a field texture
             focusTrail.push(focused);
             if (focusTrail.length > 6) focusTrail.shift();   // remember the last ~6 stops
             focused = target;

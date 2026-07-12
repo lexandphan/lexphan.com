@@ -936,6 +936,10 @@
     #orbit-overlay #ob-reset:active { transform: translateY(1px); }
     #orbit-overlay #ob-reset svg { display: block; opacity: .82; }
     #orbit-overlay.in-focus #ob-reset { opacity: 0; pointer-events: none; }
+    /* viewing a photo: lift the room atmosphere off it — the vignette multiplies the photo's
+       edges darker and the grain sits over it; the main lightbox has neither over the print */
+    #orbit-overlay #ob-vignette, #orbit-overlay #ob-grain { transition: opacity .5s var(--ease); }
+    #orbit-overlay.in-focus #ob-vignette, #orbit-overlay.in-focus #ob-grain { opacity: 0; }
     /* drop backdrop-filter while dragging (re-blurring it every frame is a top cause of drag jank) */
     #orbit-overlay.dragging #ob-reset,
     #orbit-overlay.dragging .fnav,
