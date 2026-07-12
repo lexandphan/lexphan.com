@@ -84,7 +84,7 @@
       { p: 'playa/2',   w: 2765, h: 4069 },
       { p: 'pdt/26',    w: 2274, h: 1536 },
       { p: 'splash/47', w: 1536, h: 2316 },
-      { p: 'kyoto/27',  w: 1536, h: 2317 },
+      { p: 'kyoto/25',  w: 1536, h: 2317 },   /* was kyoto/27 before 18/20 were removed */
       { p: 'tokyo/13',  w: 1536, h: 2317 },
       { p: 'sapporo/2', w: 2318, h: 1536 },
       { p: 'pv/61',     w: 2292, h: 1536 },   /* was pv/64 before 15/17/18 were removed */
