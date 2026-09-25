@@ -197,7 +197,7 @@ function makeScene(stage, view) {
     scene.add(buildBody(THREE, m, new THREE.Color(dark ? 0xf2f1ec : 0xfbfaf6)));
 
     const pieceMat = new THREE.MeshStandardMaterial({
-      color: accent, roughness: .78, transparent: true, opacity: .62, side: THREE.DoubleSide, depthWrite: false,
+      color: accent, roughness: .78, transparent: true, opacity: .58, side: THREE.FrontSide, depthWrite: false,
     });
     const piece = buildGarment(THREE, view.garment.axes, m, pieceMat, view.garment.category);
     if (piece) scene.add(piece);

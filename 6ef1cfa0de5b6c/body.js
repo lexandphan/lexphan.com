@@ -324,11 +324,14 @@ export function buildBottom(THREE, axes, m, material) {
   ]), material));
 
   const lc = legCenters(m);
+  const legRing = (y, circ, x) => { const { a, b } = axesFromCirc(circ, 1.05); return ring(y, a, b, x); };
   for (const s of [-1, 1]) {
-    g.add(new THREE.Mesh(limb(THREE, [s * lc.hip, yCrotch + 1, 0], [s * lc.knee, yKnee, 0], thighC, kneeC, 1.05,
-      { capA: false, capB: false }), material));
-    g.add(new THREE.Mesh(limb(THREE, [s * lc.knee, yKnee, 0], [s * lc.ankle, yHem, 0], kneeC, hemC, 1.05,
-      { capA: false, capB: false }), material));
+    g.add(new THREE.Mesh(loft(THREE, [
+      legRing(yHem, hemC, s * lc.ankle),
+      legRing(yKnee, kneeC, s * lc.knee),
+      legRing(yCrotch + 1, thighC, s * lc.hip),
+      legRing(yCrotch + 6, thighC * 1.02, s * lc.hip),
+    ]), material));
   }
   return g;
 }
@@ -357,13 +360,10 @@ export function ghostRings(THREE, axes, m, material, category) {
     const yHem = Math.max(yCrotch - inseam, -12);
     const w = axesFromCirc(waist * 2, 1.3);
     add(yWaist, w.a, w.b);
-    const t = axesFromCirc((axes.thigh?.cm ?? waist * 0.78) * 2, 1.05);
+    void yCrotch;
     const lc = legCenters(m);
-    for (const s of [-1, 1]) {
-      add(yCrotch - inseam * 0.16, t.a, t.b, s * lc.knee);
-      const h = axesFromCirc((axes.hem?.cm ?? 22) * 2, 1.05);
-      add(yHem, h.a, h.b, s * lc.ankle);
-    }
+    const h = axesFromCirc((axes.hem?.cm ?? 22) * 2, 1.05);
+    for (const s of [-1, 1]) add(yHem, h.a, h.b, s * lc.ankle);
     return g;
   }
 
