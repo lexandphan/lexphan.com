@@ -149,7 +149,7 @@ export function landmarks(m) {
     chest: H * 0.722,
     waist: H * 0.622,
     hip: H * 0.528,
-    crotch: H - m.inseamCm,
+    crotch: m.inseamCm,
     knee: H * 0.285,
     ankle: H * 0.045,
   };
@@ -162,60 +162,63 @@ export function buildBody(THREE, m, color) {
 
   const neckC = m.chestCirc * 0.37;
   const shoulderHalf = m.shoulderCm / 2;
+  const upperC = m.chestCirc * 0.40, wristC = m.chestCirc * 0.30;
+  const armHalf = axesFromCirc(upperC, 1.06).a;
+  const torsoTopHalf = Math.min(shoulderHalf - armHalf * 0.55, m.chestCirc * 0.20);
   // Cross-sections stay elliptical and stay driven by his real girths — the toy look comes from
   // ROUNDING THE ENDS, not from pretending his chest is circular. A circular chest would shrink
   // the drawn width for the same circumference and quietly break the width comparison.
-  const chestAx = axesFromCirc(m.chestCirc, 1.34);
-  const waistAx = axesFromCirc(m.waistCirc, 1.26);
-  const hipAx = axesFromCirc(m.hipCirc, 1.38);
+  const chestAx = axesFromCirc(m.chestCirc, 1.30);
+  // A wider width:depth ratio at the waist spends more of his 28cm chest-to-waist drop on DEPTH
+  // and less on width, so the front silhouette reads closer to a slab. The girth is unchanged —
+  // this moves where the reduction shows, it does not shrink or invent anything.
+  const waistAx = axesFromCirc(m.waistCirc, 1.52);
+  const hipAx = axesFromCirc(m.hipCirc, 1.36);
   const neckAx = axesFromCirc(neckC, 1.05);
 
   const rings = [];
-  // rounded underside of the hips, so the torso reads as a soft mass rather than a cut tube
-  for (let i = 3; i >= 1; i--) {
-    const u = (i / 4) * (Math.PI / 2);
-    rings.push(ring(L.hip - 6 - Math.sin(u) * 5, hipAx.a * Math.cos(u * 0.55), hipAx.b * Math.cos(u * 0.55)));
-  }
-  rings.push(ring(L.hip - 6, hipAx.a, hipAx.b));
-  rings.push(ring(L.hip, hipAx.a, hipAx.b));
+  rings.push(ring(L.hip - 9, hipAx.a * 0.93, hipAx.b * 0.93));
+  rings.push(ring(L.hip - 3, hipAx.a, hipAx.b));
   rings.push(ring(L.waist, waistAx.a, waistAx.b));
   rings.push(ring(L.chest, chestAx.a, chestAx.b));
   rings.push(ring(L.armpit, chestAx.a * 1.02, chestAx.b * 0.98));
-  rings.push(ring(L.shoulder, shoulderHalf, chestAx.b * 0.94));
-  // shoulder DOME: a quarter-ellipse from the shoulder width in to the neck, so the top is a soft
-  // yoke instead of a flat plate with a hole in it.
-  const domeH = 9;
-  for (let i = 1; i <= 5; i++) {
-    const u = (i / 5) * (Math.PI / 2);
+  // The shoulder is the widest point but it is NOT a corner: the width arrives on a curve from the
+  // armpit and leaves on one into the yoke, so there is no plateau and no edge where an arm meets
+  // a torso. His 52cm delt-to-delt is still the maximum; only the approach to it is rounded.
+  rings.push(ring((L.armpit + L.shoulder) / 2, chestAx.a * 1.04, chestAx.b * 0.96));
+  rings.push(ring(L.shoulder, torsoTopHalf, chestAx.b * 0.94));
+  const domeH = 11;
+  for (let i = 1; i <= 7; i++) {
+    const u = (i / 7) * (Math.PI / 2);
     rings.push(ring(
       L.shoulder + Math.sin(u) * domeH,
-      neckAx.a + (shoulderHalf - neckAx.a) * Math.cos(u),
-      neckAx.b + (chestAx.b * 0.94 - neckAx.b) * Math.cos(u),
+      neckAx.a + (torsoTopHalf - neckAx.a) * Math.pow(Math.cos(u), 0.8),
+      neckAx.b + (chestAx.b * 0.94 - neckAx.b) * Math.pow(Math.cos(u), 0.8),
     ));
   }
   g.add(new THREE.Mesh(loft(THREE, rings, { capTop: true, capBottom: true }), mat));
 
   // Head: a ball resting IN the yoke. The reference has no real neck, so the sphere overlaps the
   // dome rather than being stilted above it.
-  const headR = neckC * 0.365;
-  const head = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 24), mat);
-  head.scale.set(headR, headR * 1.12, headR * 1.02);
-  head.position.y = L.shoulder + domeH + headR * 0.58;
+  const headR = neckC * 0.395;
+  const head = new THREE.Mesh(new THREE.SphereGeometry(1, 40, 28), mat);
+  head.scale.set(headR, headR * 1.14, headR * 1.03);
+  head.position.y = L.shoulder + domeH + headR * 0.48;
   g.add(head);
 
-  const thighC = m.hipCirc * 0.60, kneeC = m.hipCirc * 0.42, ankleC = m.hipCirc * 0.30;
+  const thighC = m.hipCirc * 0.68, kneeC = m.hipCirc * 0.50, ankleC = m.hipCirc * 0.37;
   const lc = legCenters(m);
   for (const s of [-1, 1]) {
-    g.add(new THREE.Mesh(capsule(THREE, [s * lc.hip, L.hip + 2, 0], [s * lc.knee, L.knee, 0], thighC * 1.06, kneeC, 1.06, { capA: false, capB: false }), mat));
+    g.add(new THREE.Mesh(capsule(THREE, [s * lc.hip, L.hip - 1, 0], [s * lc.knee, L.knee, 0], thighC * 1.06, kneeC, 1.06, { capA: false, capB: false }), mat));
     g.add(new THREE.Mesh(capsule(THREE, [s * lc.knee, L.knee, 0], [s * lc.ankle, L.ankle + 2, 0], kneeC, ankleC, 1.1, { capA: false }), mat));
     // foot: a short capsule nosing forward, rounded at both ends
     g.add(new THREE.Mesh(capsule(THREE, [s * lc.ankle, L.ankle + 1, 0], [s * lc.ankle, L.ankle - 1, ankleC * 0.42], ankleC, ankleC * 0.82, 1.15), mat));
   }
 
-  const upperC = m.chestCirc * 0.34, wristC = m.chestCirc * 0.23;
   for (const s of [-1, 1]) {
     const from = armRoot(m, s), to = armEnd(m, s);
-    g.add(new THREE.Mesh(capsule(THREE, from, to, upperC, wristC, 1.06, { capA: false }), mat));
+    // capped at the top: that dome IS the shoulder, merged into the torso's yoke
+    g.add(new THREE.Mesh(capsule(THREE, from, to, upperC, wristC, 1.06), mat));
   }
   return g;
 }
@@ -234,7 +237,8 @@ export function legCenters(m) {
 
 export function armRoot(m, side) {
   const L = landmarks(m);
-  return [side * (m.shoulderCm / 2 - m.chestCirc * 0.035), L.shoulder - 2, 0];
+  const armHalf = axesFromCirc(m.chestCirc * 0.40, 1.06).a;
+  return [side * (m.shoulderCm / 2 - armHalf), L.shoulder + 1, 0];
 }
 export function armEnd(m, side) {
   const L = landmarks(m);
