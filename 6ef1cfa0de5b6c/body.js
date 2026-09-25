@@ -97,21 +97,43 @@ export function loft(THREE, keyRings, { capTop = false, capBottom = false, smoot
   return g;
 }
 
-/** A limb: a tapered tube between two points, circumference given at each end. */
-function limb(THREE, from, to, circA, circB, ratio = 1.05) {
-  const steps = 6;
+/** A limb as a CAPSULE: a tapered tube with a hemispherical cap at each end.
+ *
+ *  The figure is a soft vinyl mannequin, not an anatomical model, so nothing terminates in a flat
+ *  disc. The caps are rings on a quarter-circle profile, so they belong to the same lofted surface
+ *  and share its smooth normals — and the rounded end of an arm IS the mitten hand. */
+function capsule(THREE, from, to, circA, circB, ratio = 1.05, { capA = true, capB = true } = {}) {
+  const steps = 6, capSteps = 4;
+  const axis = [to[0] - from[0], to[1] - from[1], to[2] - from[2]];
+  const len = Math.hypot(axis[0], axis[1], axis[2]) || 1;
+  const dir = axis.map((c) => c / len);
+  const at = (t) => [0, 1, 2].map((c) => from[c] + axis[c] * t);
+  const ringAt = (p, a, b) => ring(p[1], a, b, p[0], p[2]);
   const rings = [];
-  for (let s = 0; s <= steps; s++) {
-    const t = s / steps;
-    const c = circA + (circB - circA) * t;
-    const { a, b } = axesFromCirc(c, ratio);
-    const x = from[0] + (to[0] - from[0]) * t;
-    const y = from[1] + (to[1] - from[1]) * t;
-    const z = from[2] + (to[2] - from[2]) * t;
-    rings.push(ring(y, a, b, x, z));
+
+  const cap = (circ, origin, sign, descending) => {
+    const { a, b } = axesFromCirc(circ, ratio);
+    const r = Math.max(a, b);
+    const idx = descending ? [...Array(capSteps).keys()].map((i) => capSteps - i) : [...Array(capSteps).keys()].map((i) => i + 1);
+    for (const i of idx) {
+      const u = (i / capSteps) * (Math.PI / 2);
+      const p = [0, 1, 2].map((c) => origin[c] + sign * dir[c] * Math.sin(u) * r);
+      rings.push(ringAt(p, Math.max(a * Math.cos(u), 0.02), Math.max(b * Math.cos(u), 0.02)));
+    }
+  };
+
+  if (capA) cap(circA, from, -1, true);
+  for (let i = 0; i <= steps; i++) {
+    const t = i / steps;
+    const { a, b } = axesFromCirc(circA + (circB - circA) * t, ratio);
+    rings.push(ringAt(at(t), a, b));
   }
-  return loft(THREE, rings, { capTop: true, capBottom: true });
+  if (capB) cap(circB, to, 1, false);
+
+  return loft(THREE, rings, { capTop: !capB, capBottom: !capA, smooth: false });
 }
+
+const limb = capsule;
 
 /** Heights as a fraction of stature, and circumferences as a fraction of a measured girth.
  *  These are proportions, not measurements — they place the numbers he DOES have on a plausible
@@ -136,49 +158,64 @@ export function landmarks(m) {
 export function buildBody(THREE, m, color) {
   const L = landmarks(m);
   const g = new THREE.Group();
-  const mat = new THREE.MeshStandardMaterial({ color, roughness: .92, metalness: 0, flatShading: false });
+  const mat = new THREE.MeshStandardMaterial({ color, roughness: .95, metalness: 0 });
 
   const neckC = m.chestCirc * 0.37;
   const shoulderHalf = m.shoulderCm / 2;
-  const chestAx = axesFromCirc(m.chestCirc, 1.38);
-  const waistAx = axesFromCirc(m.waistCirc, 1.28);
-  const hipAx = axesFromCirc(m.hipCirc, 1.42);
+  // Cross-sections stay elliptical and stay driven by his real girths — the toy look comes from
+  // ROUNDING THE ENDS, not from pretending his chest is circular. A circular chest would shrink
+  // the drawn width for the same circumference and quietly break the width comparison.
+  const chestAx = axesFromCirc(m.chestCirc, 1.34);
+  const waistAx = axesFromCirc(m.waistCirc, 1.26);
+  const hipAx = axesFromCirc(m.hipCirc, 1.38);
   const neckAx = axesFromCirc(neckC, 1.05);
 
-  // torso: neck → shoulder → chest → waist → hip. The shoulder ring is the only one specified by a
-  // WIDTH rather than a girth, because delt-to-delt is what he measured.
-  const torso = loft(THREE, [
-    ring(L.hip - 4, hipAx.a, hipAx.b),
-    ring(L.hip, hipAx.a, hipAx.b),
-    ring(L.waist, waistAx.a, waistAx.b),
-    ring(L.chest, chestAx.a, chestAx.b),
-    ring(L.armpit, chestAx.a * 1.02, chestAx.b * 0.98),
-    ring(L.shoulder, shoulderHalf, chestAx.b * 0.94),
-    ring(L.neck, neckAx.a, neckAx.b),
-  ], { capTop: true, capBottom: true });
-  g.add(new THREE.Mesh(torso, mat));
+  const rings = [];
+  // rounded underside of the hips, so the torso reads as a soft mass rather than a cut tube
+  for (let i = 3; i >= 1; i--) {
+    const u = (i / 4) * (Math.PI / 2);
+    rings.push(ring(L.hip - 6 - Math.sin(u) * 5, hipAx.a * Math.cos(u * 0.55), hipAx.b * Math.cos(u * 0.55)));
+  }
+  rings.push(ring(L.hip - 6, hipAx.a, hipAx.b));
+  rings.push(ring(L.hip, hipAx.a, hipAx.b));
+  rings.push(ring(L.waist, waistAx.a, waistAx.b));
+  rings.push(ring(L.chest, chestAx.a, chestAx.b));
+  rings.push(ring(L.armpit, chestAx.a * 1.02, chestAx.b * 0.98));
+  rings.push(ring(L.shoulder, shoulderHalf, chestAx.b * 0.94));
+  // shoulder DOME: a quarter-ellipse from the shoulder width in to the neck, so the top is a soft
+  // yoke instead of a flat plate with a hole in it.
+  const domeH = 9;
+  for (let i = 1; i <= 5; i++) {
+    const u = (i / 5) * (Math.PI / 2);
+    rings.push(ring(
+      L.shoulder + Math.sin(u) * domeH,
+      neckAx.a + (shoulderHalf - neckAx.a) * Math.cos(u),
+      neckAx.b + (chestAx.b * 0.94 - neckAx.b) * Math.cos(u),
+    ));
+  }
+  g.add(new THREE.Mesh(loft(THREE, rings, { capTop: true, capBottom: true }), mat));
 
-  const neckTube = limb(THREE, [0, L.neck - 2, 0], [0, L.chin - 1, 0], neckC, neckC * 0.92, 1.05);
-  g.add(new THREE.Mesh(neckTube, mat));
-
-  const head = new THREE.Mesh(new THREE.SphereGeometry(1, 28, 20), mat);
-  head.scale.set(neckC * 0.235, (L.crown - L.chin) * 0.62, neckC * 0.26);
-  head.position.y = (L.crown + L.chin) / 2 - 1;
+  // Head: a ball resting IN the yoke. The reference has no real neck, so the sphere overlaps the
+  // dome rather than being stilted above it.
+  const headR = neckC * 0.365;
+  const head = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 24), mat);
+  head.scale.set(headR, headR * 1.12, headR * 1.02);
+  head.position.y = L.shoulder + domeH + headR * 0.58;
   g.add(head);
 
-  const thighC = m.hipCirc * 0.58, kneeC = m.hipCirc * 0.38, ankleC = m.hipCirc * 0.23;
-  const legX = hipAx.a * 0.48;
+  const thighC = m.hipCirc * 0.60, kneeC = m.hipCirc * 0.42, ankleC = m.hipCirc * 0.30;
+  const legX = hipAx.a * 0.46;
   for (const s of [-1, 1]) {
-    g.add(new THREE.Mesh(limb(THREE, [s * legX, L.hip, 0], [s * legX * 0.95, L.knee, 0], thighC * 1.08, kneeC, 1.08), mat));
-    g.add(new THREE.Mesh(limb(THREE, [s * legX * 0.95, L.knee, 0], [s * legX * 0.85, L.ankle, 0], kneeC, ankleC, 1.12), mat));
+    g.add(new THREE.Mesh(capsule(THREE, [s * legX, L.hip + 2, 0], [s * legX * 0.95, L.knee, 0], thighC * 1.06, kneeC, 1.06, { capA: false, capB: false }), mat));
+    g.add(new THREE.Mesh(capsule(THREE, [s * legX * 0.95, L.knee, 0], [s * legX * 0.9, L.ankle + 2, 0], kneeC, ankleC, 1.1, { capA: false }), mat));
+    // foot: a short capsule nosing forward, rounded at both ends
+    g.add(new THREE.Mesh(capsule(THREE, [s * legX * 0.9, L.ankle + 1, 0], [s * legX * 0.9, L.ankle - 1, ankleC * 0.42], ankleC, ankleC * 0.82, 1.15), mat));
   }
 
-  const upperC = m.chestCirc * 0.33, wristC = m.chestCirc * 0.165;
+  const upperC = m.chestCirc * 0.34, wristC = m.chestCirc * 0.23;
   for (const s of [-1, 1]) {
     const from = armRoot(m, s), to = armEnd(m, s);
-    const mid = [(from[0] + to[0]) / 2, (from[1] + to[1]) / 2, 0];
-    g.add(new THREE.Mesh(limb(THREE, from, mid, upperC, (upperC + wristC) / 2, 1.06), mat));
-    g.add(new THREE.Mesh(limb(THREE, mid, to, (upperC + wristC) / 2, wristC, 1.08), mat));
+    g.add(new THREE.Mesh(capsule(THREE, from, to, upperC, wristC, 1.06, { capA: false }), mat));
   }
   return g;
 }
@@ -193,8 +230,8 @@ export function armEnd(m, side) {
   const L = landmarks(m);
   const root = armRoot(m, side);
   const drop = m.armLenCm;
-  const out = Math.sin(0.17) * drop;
-  return [root[0] + side * out, root[1] - Math.cos(0.17) * drop, 0];
+  const out = Math.sin(0.23) * drop;
+  return [root[0] + side * out, root[1] - Math.cos(0.23) * drop, 0];
 }
 
 /** A top as a shell around the figure: shoulder seam at the top, pit-to-pit at the armpit,

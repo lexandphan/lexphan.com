@@ -186,15 +186,15 @@ function makeScene(stage, view) {
 
     const dark = matchMedia("(prefers-color-scheme: dark)").matches;
     const accent = new THREE.Color(css("--accent"));
-    scene.add(new THREE.HemisphereLight(dark ? 0xbcbcc8 : 0xffffff, dark ? 0x2a2a33 : 0xc9c9c2, dark ? 2.2 : 2.1));
-    const key = new THREE.DirectionalLight(0xffffff, dark ? 1.8 : 1.9);
-    key.position.set(-60, L.crown * 1.2, 110);
+    scene.add(new THREE.HemisphereLight(0xffffff, dark ? 0x3a3a45 : 0x9a9a92, dark ? 1.45 : 1.55));
+    const key = new THREE.DirectionalLight(0xffffff, dark ? 1.25 : 1.35);
+    key.position.set(-70, L.crown * 1.25, 120);
     scene.add(key);
-    const rim = new THREE.DirectionalLight(0xffffff, dark ? 0.9 : 0.5);
-    rim.position.set(90, L.crown * 0.7, -80);
+    const rim = new THREE.DirectionalLight(0xffffff, dark ? 0.55 : 0.35);
+    rim.position.set(95, L.crown * 0.6, -90);
     scene.add(rim);
 
-    scene.add(buildBody(THREE, m, new THREE.Color(dark ? 0x6e6e7c : 0xcfcfc8)));
+    scene.add(buildBody(THREE, m, new THREE.Color(dark ? 0xf2f1ec : 0xfbfaf6)));
 
     const pieceMat = new THREE.MeshStandardMaterial({
       color: accent, roughness: .78, transparent: true, opacity: .62, side: THREE.DoubleSide, depthWrite: false,
