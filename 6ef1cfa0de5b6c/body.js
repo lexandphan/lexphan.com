@@ -204,12 +204,12 @@ export function buildBody(THREE, m, color) {
   g.add(head);
 
   const thighC = m.hipCirc * 0.60, kneeC = m.hipCirc * 0.42, ankleC = m.hipCirc * 0.30;
-  const legX = hipAx.a * 0.46;
+  const lc = legCenters(m);
   for (const s of [-1, 1]) {
-    g.add(new THREE.Mesh(capsule(THREE, [s * legX, L.hip + 2, 0], [s * legX * 0.95, L.knee, 0], thighC * 1.06, kneeC, 1.06, { capA: false, capB: false }), mat));
-    g.add(new THREE.Mesh(capsule(THREE, [s * legX * 0.95, L.knee, 0], [s * legX * 0.9, L.ankle + 2, 0], kneeC, ankleC, 1.1, { capA: false }), mat));
+    g.add(new THREE.Mesh(capsule(THREE, [s * lc.hip, L.hip + 2, 0], [s * lc.knee, L.knee, 0], thighC * 1.06, kneeC, 1.06, { capA: false, capB: false }), mat));
+    g.add(new THREE.Mesh(capsule(THREE, [s * lc.knee, L.knee, 0], [s * lc.ankle, L.ankle + 2, 0], kneeC, ankleC, 1.1, { capA: false }), mat));
     // foot: a short capsule nosing forward, rounded at both ends
-    g.add(new THREE.Mesh(capsule(THREE, [s * legX * 0.9, L.ankle + 1, 0], [s * legX * 0.9, L.ankle - 1, ankleC * 0.42], ankleC, ankleC * 0.82, 1.15), mat));
+    g.add(new THREE.Mesh(capsule(THREE, [s * lc.ankle, L.ankle + 1, 0], [s * lc.ankle, L.ankle - 1, ankleC * 0.42], ankleC, ankleC * 0.82, 1.15), mat));
   }
 
   const upperC = m.chestCirc * 0.34, wristC = m.chestCirc * 0.23;
@@ -222,6 +222,16 @@ export function buildBody(THREE, m, color) {
 
 /** Where a sleeve starts and ends. Shared by the body and by every garment, so a sleeve always
  *  lands on the arm it is supposed to cover. */
+/** Where the two legs sit, at the hip / knee / ankle. Defined ONCE because the body, the trousers
+ *  and the reference rings all have to stand in the same place — drifting stances read as the
+ *  trousers missing the legs. Slightly wider than a real stance so a wide leg opening does not
+ *  merge its two hems into one shape. */
+export function legCenters(m) {
+  const hipAx = axesFromCirc(m.hipCirc, 1.38);
+  const x = hipAx.a * 0.52;
+  return { hip: x, knee: x * 0.99, ankle: x * 0.98 };
+}
+
 export function armRoot(m, side) {
   const L = landmarks(m);
   return [side * (m.shoulderCm / 2 - m.chestCirc * 0.035), L.shoulder - 2, 0];
@@ -271,7 +281,8 @@ export function buildTop(THREE, axes, m, material) {
       const full = Math.hypot(dx, dy) || 1;
       const t = Math.min(run / full, 1.25);
       g.add(new THREE.Mesh(
-        limb(THREE, [root[0], root[1] + 1, 0], [root[0] + dx * t, root[1] + dy * t, 0], bicep, cuff, 1.05),
+        limb(THREE, [root[0], root[1] + 1, 0], [root[0] + dx * t, root[1] + dy * t, 0], bicep, cuff, 1.05,
+          { capA: false, capB: false }),
         material,
       ));
     }
@@ -308,10 +319,12 @@ export function buildBottom(THREE, axes, m, material) {
     ring(yWaist, wAx.a, wAx.b),
   ]), material));
 
-  const legX = hipAx.a * 0.48;
+  const lc = legCenters(m);
   for (const s of [-1, 1]) {
-    g.add(new THREE.Mesh(limb(THREE, [s * legX, yCrotch + 1, 0], [s * legX * 0.95, yKnee, 0], thighC, kneeC, 1.05), material));
-    g.add(new THREE.Mesh(limb(THREE, [s * legX * 0.95, yKnee, 0], [s * legX * 0.9, yHem, 0], kneeC, hemC, 1.05), material));
+    g.add(new THREE.Mesh(limb(THREE, [s * lc.hip, yCrotch + 1, 0], [s * lc.knee, yKnee, 0], thighC, kneeC, 1.05,
+      { capA: false, capB: false }), material));
+    g.add(new THREE.Mesh(limb(THREE, [s * lc.knee, yKnee, 0], [s * lc.ankle, yHem, 0], kneeC, hemC, 1.05,
+      { capA: false, capB: false }), material));
   }
   return g;
 }
@@ -341,11 +354,11 @@ export function ghostRings(THREE, axes, m, material, category) {
     const w = axesFromCirc(waist * 2, 1.3);
     add(yWaist, w.a, w.b);
     const t = axesFromCirc((axes.thigh?.cm ?? waist * 0.78) * 2, 1.05);
-    const hipAx = axesFromCirc(Math.max(waist * 2, m.hipCirc + 6), 1.4);
+    const lc = legCenters(m);
     for (const s of [-1, 1]) {
-      add(yCrotch - 2, t.a, t.b, s * hipAx.a * 0.48);
+      add(yCrotch - inseam * 0.16, t.a, t.b, s * lc.knee);
       const h = axesFromCirc((axes.hem?.cm ?? 22) * 2, 1.05);
-      add(yHem, h.a, h.b, s * hipAx.a * 0.44);
+      add(yHem, h.a, h.b, s * lc.ankle);
     }
     return g;
   }
