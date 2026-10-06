@@ -1,0 +1,306 @@
+/* Fit check — lexphan.com/6ef1cfa0de5b6c/
+   Paper, ink, print and sienna are the photo site's own tokens (app.css). Two colours carry identity
+   and nothing else: indigo is the piece in the listing, sienna is a garment Alex already owns.
+   Body text never wears either. The drawing sits on a print, the way every photo on the site does. */
+
+:root {
+  color-scheme: light dark;
+  --paper: #F4F1EA;
+  --paper-deep: #ECE7DC;
+  --print: #FFFFFF;
+  --ink: #26221D;
+  --ink-2: #5E574E;
+  --ink-3: #9A9284;
+  --rule: rgba(38, 34, 29, .13);
+  --piece: #34508F;
+  --yours: #9C6B3F;
+  --figure: #E7E2D8;
+  --cloth: #DCE2F0;
+  --cloth-est: #EAEEF6;
+  --hatch-ink: #8193BA;
+  --you: #5E574E;
+  --shadow: 0 10px 30px -12px rgba(40, 32, 24, .28);
+  --grain: .03;
+  --sans: 'Bricolage Grotesque', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono: 'Space Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #171512;
+    --paper-deep: #221F1B;
+    --print: #201D19;
+    --ink: #EEE8DC;
+    --ink-2: #ADA494;
+    --ink-3: #6E675C;
+    --rule: rgba(238, 232, 220, .12);
+    --piece: #93A7E6;
+    --yours: #D49B5F;
+    --figure: #36322C;
+    --cloth: #2B3553;
+    --cloth-est: #262C3D;
+    --hatch-ink: #717EA9;
+    --you: #C9C0B0;
+    --shadow: 0 12px 32px -14px rgba(0, 0, 0, .7);
+    --grain: .05;
+  }
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { background: var(--paper); -webkit-text-size-adjust: 100%; }
+body {
+  position: relative;
+  min-height: 100vh;
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font: 400 16px/1.5 var(--sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow-x: hidden;
+}
+/* the photo site's single static film grain */
+body::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: var(--grain);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 180px 180px;
+}
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; border-radius: 2px; }
+button { font: inherit; color: inherit; }
+
+main {
+  max-width: 560px;
+  margin: 0 auto;
+  padding: calc(30px + env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) calc(36px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+}
+.state { margin: 0; padding: 32vh 16px 0; text-align: center; color: var(--ink-2); font-size: 16px; }
+.state--link { padding-top: 8px; }
+
+.n { font-family: var(--mono); font-size: .84em; letter-spacing: -0.03em; white-space: nowrap; }
+.m { color: var(--ink-2); }
+.nb { white-space: nowrap; }
+
+/* ── the answer ─────────────────────────────────────────────── */
+.name { margin: 0 0 14px; font-size: 15px; line-height: 1.35; font-weight: 500; color: var(--ink-2); overflow-wrap: anywhere; }
+.verdict {
+  margin: 0;
+  font-weight: 600;
+  font-size: clamp(33px, 9.6vw, 50px);
+  line-height: 1.02;
+  letter-spacing: -0.028em;
+  text-wrap: balance;
+}
+/* what every number below rests on, said before any of them */
+.flag {
+  margin: 16px 0 0;
+  text-wrap: pretty;
+  padding: 1px 0 1px 12px;
+  border-left: 2px solid var(--ink);
+  font-size: 15px;
+  line-height: 1.4;
+  font-weight: 500;
+}
+.against { margin: 14px 0 0; font-size: 15px; line-height: 1.45; color: var(--ink-2); }
+.flag + .against { margin-top: 12px; }
+
+/* the number the listing left out, when it is the one that decides the purchase */
+.ask {
+  margin: 24px 0 0;
+  padding: 15px 18px 16px;
+  background: var(--paper-deep);
+  border-radius: 2px;
+}
+.ask p { margin: 0; }
+.ask-head { font-size: 16.5px; line-height: 1.35; font-weight: 600; text-wrap: balance; }
+.ask-body { margin-top: 6px !important; font-size: 15.5px; line-height: 1.5; }
+.ask-note { margin-top: 6px !important; font-size: 14px; line-height: 1.5; }
+.ask-aside { margin-top: 10px !important; padding-top: 10px; border-top: 1px solid var(--rule); font-size: 14.5px; line-height: 1.5; color: var(--ink-2); }
+
+/* ── the differences that decide it ─────────────────────────── */
+.rows { margin: 30px 0 0; padding: 0; list-style: none; }
+.row {
+  display: grid;
+  grid-template-columns: 5.9rem minmax(0, 1fr);
+  column-gap: 14px;
+  padding: 17px 0 19px;
+  border-top: 1px solid var(--rule);
+}
+.row:last-child { border-bottom: 1px solid var(--rule); }
+.row-fig { margin: 0; display: flex; flex-direction: column; align-items: flex-start; padding-top: 1px; }
+.row-delta { display: flex; align-items: baseline; white-space: nowrap; font-family: var(--mono); }
+.row-approx { margin-right: 1px; font-size: 17px; line-height: 1; color: var(--ink-2); }
+.row-num { font-size: 25px; line-height: 1; letter-spacing: -0.04em; }
+.row-unit { margin-left: 3px; font-size: 12px; color: var(--ink-2); }
+.row-delta.is-plain .row-num { color: var(--ink-2); }
+.row-vs { margin-top: 7px; font-size: 13px; line-height: 1.3; color: var(--ink-2); overflow-wrap: anywhere; }
+.row-body { min-width: 0; }
+.row-label { margin: 0; font-size: 14.5px; line-height: 1.3; font-weight: 500; color: var(--ink-2); }
+.row-value .n { font-size: 13.5px; color: var(--ink); }
+.row-head { margin: 5px 0 0; font-size: 17.5px; line-height: 1.36; font-weight: 500; letter-spacing: -0.005em; }
+.row-more { margin: 7px 0 0; font-size: 14.5px; line-height: 1.5; color: var(--ink-2); }
+.row-more .n { color: inherit; }
+.row-more .m { display: block; margin-top: 5px; font-size: 13.5px; }
+.row-more.is-lead { margin-top: 5px; font-size: 16px; color: var(--ink); }
+
+.gaps { margin: 16px 0 0; font-size: 14.5px; line-height: 1.5; color: var(--ink-2); }
+.gaps + .gaps { margin-top: 6px; }
+
+/* ── the drawing, as a print ────────────────────────────────── */
+.fig { margin: 42px 0 0; }
+/* after the open question the picture follows closely, so more of it makes the first screen */
+.ask + .fig { margin-top: 28px; }
+.fig-tabs { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 14px; }
+.fig-tabs-label { font-size: 14px; color: var(--ink-2); margin-right: 2px; }
+.fig-tabs.is-wrapped .fig-tabs-label { flex-basis: 100%; margin: 0 0 -2px; }
+.fig-solo { margin: 0 0 12px; font-size: 14px; color: var(--ink-2); }
+.fig-tab {
+  min-height: 40px;
+  padding: 0 15px;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  background: transparent;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.fig-tab[aria-checked="true"] { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+.fig-print { background: var(--print); border-radius: 2px; box-shadow: var(--shadow); padding: 16px 8px 6px; }
+.fig-stage { position: relative; }
+.fig-svg { display: block; margin: 0 auto; max-width: 100%; height: auto; overflow: visible; }
+
+/* him under trousers: one flat tone, no line, no shading; on a top, one guide across the chest */
+.fig-block { fill: var(--figure); }
+.fig-you-line { fill: none; stroke: var(--you); stroke-width: 1.4; stroke-linecap: round; }
+.fig-you-tag { font-family: var(--mono); font-size: 10.5px; letter-spacing: -0.02em; fill: var(--you); paint-order: stroke; stroke: var(--cloth); stroke-width: 4px; stroke-linejoin: round; }
+.fig-you-tag.is-est { stroke: var(--cloth-est); }
+.fig-centre { fill: none; stroke: var(--ink-3); stroke-width: .8; stroke-dasharray: 12 3 2 3; stroke-opacity: .55; }
+.fig-floor-line { stroke: var(--ink-3); stroke-width: 1; }
+
+/* the piece */
+.fig-cloth { fill: var(--cloth); }
+/* every width borrowed: the shape is a stand-in, so its cloth is paler */
+.fig-cloth.is-est { fill: var(--cloth-est); }
+.fig-collar { fill: var(--cloth); stroke: var(--piece); stroke-width: 1.1; stroke-opacity: .8; stroke-linejoin: round; }
+.fig-collar.is-est { fill: var(--cloth-est); }
+.fig-button { fill: var(--cloth); stroke: var(--piece); stroke-width: 1; stroke-opacity: .75; }
+.fig-button.is-est { fill: var(--cloth-est); }
+.fig-detail { fill: none; stroke: var(--piece); stroke-linecap: round; stroke-linejoin: round; }
+.fig-detail-line { stroke-width: 1; stroke-opacity: .5; }
+.fig-stitch { stroke-width: .9; stroke-opacity: .5; stroke-dasharray: 2.2 1.8; }
+.fig-seam { fill: none; stroke: var(--piece); stroke-width: 1.6; stroke-linejoin: round; stroke-linecap: round; }
+.fig-seam.is-station { stroke-width: 2.4; }
+.fig-seam.is-borrowed { stroke-width: 1.9; stroke-dasharray: .1 3.5; }
+/* not in the listing: a band of drafting hatch along the edge, fixed to the drawing, not the cloth */
+.fig-hatch-band { fill: none; stroke-width: 7; stroke-linejoin: round; }
+.fig-hatch-line { stroke: var(--hatch-ink); stroke-width: 1.15; }
+
+/* his garment */
+.fig-ref-casing { fill: none; stroke: var(--print); stroke-width: 3.4; stroke-linejoin: round; stroke-linecap: round; stroke-opacity: .9; }
+.fig-ref { fill: none; stroke: var(--yours); stroke-width: 1.6; stroke-dasharray: 5 3.4; stroke-linejoin: round; stroke-linecap: round; }
+
+/* marks */
+.fig-dim { fill: none; stroke: var(--ink-2); stroke-width: .9; }
+.fig-dim-head { fill: var(--ink-2); }
+.fig-ext { fill: none; stroke: var(--ink-3); stroke-width: .8; stroke-dasharray: 2 2; }
+.fig-tag { font-family: var(--mono); font-size: 10.5px; letter-spacing: -0.02em; fill: var(--piece); }
+.fig-crotch-tag { font-family: var(--mono); font-size: 10px; letter-spacing: -0.02em; fill: var(--ink-2); paint-order: stroke; stroke: var(--cloth); stroke-width: 4px; stroke-linejoin: round; }
+.fig-crotch-tag.is-est { stroke: var(--cloth-est); }
+.fig-pin { stroke: var(--print); stroke-width: 1.2; }
+.fig-pin.is-piece { fill: var(--piece); }
+.fig-pin.is-yours { fill: var(--yours); }
+.fig-leader { fill: none; stroke-width: .9; stroke-linejoin: round; }
+.fig-leader.is-piece { stroke: var(--piece); }
+.fig-leader.is-yours { stroke: var(--yours); }
+.fig-label { font-family: var(--sans); font-size: 13.5px; font-weight: 600; letter-spacing: -0.005em; }
+.fig-label.is-piece { fill: var(--piece); }
+.fig-label.is-yours { fill: var(--yours); }
+.fig-label-sub { font-family: var(--mono); font-size: 11px; letter-spacing: -0.02em; fill: var(--ink-2); }
+.fig-scale-bar { fill: none; stroke: var(--ink-2); stroke-width: 1; }
+.fig-scale-text { fill: var(--ink-2); font-family: var(--mono); font-size: 10px; dominant-baseline: middle; }
+
+.fig-key { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 16px 0 0; padding: 0; list-style: none; font-size: 14px; line-height: 1.4; color: var(--ink-2); }
+.fig-key li { display: inline-flex; align-items: center; gap: 8px; }
+.fig-key svg { flex: none; display: block; overflow: visible; }
+.fig-key .sw-chip { fill: var(--print); stroke: var(--rule); stroke-width: 1; }
+.fig-note { margin: 8px 0 0; font-size: 13.5px; line-height: 1.5; color: var(--ink-2); text-wrap: pretty; }
+
+/* ── details on demand ──────────────────────────────────────── */
+.details { margin: 44px 0 0; }
+.more { border-top: 1px solid var(--rule); }
+.more:last-child { border-bottom: 1px solid var(--rule); }
+.more > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 52px;
+  list-style: none;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 500;
+  -webkit-tap-highlight-color: transparent;
+}
+.more > summary::-webkit-details-marker { display: none; }
+.more > summary::after { content: "+"; font: 400 20px/1 var(--mono); color: var(--ink-2); }
+.more[open] > summary::after { content: "\2212"; }
+.more-body { padding: 2px 0 20px; }
+
+.ladder { margin: 0 0 20px; }
+.ladder:last-child { margin-bottom: 4px; }
+.ladder h3 { margin: 0 0 4px; font-size: 14px; font-weight: 600; }
+.ladder h3 .m { font-weight: 400; }
+.ladder ol { margin: 0; padding: 0; list-style: none; }
+.ladder li {
+  display: grid;
+  grid-template-columns: 12px 3.9em minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: baseline;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--rule);
+  font-size: 14.5px;
+  line-height: 1.35;
+}
+.ladder li:first-child { border-top: 1px solid var(--rule); }
+.ladder .mk { align-self: start; width: 12px; height: 8px; margin-top: 6px; }
+.ladder .mk-piece { background: var(--piece); border-radius: 1px; }
+.ladder .mk-yours { height: 0; margin-top: 9px; border-top: 2px dashed var(--yours); }
+.ladder .mk-you { height: 8px; margin-top: 5px; border-left: 1.5px solid var(--you); border-right: 1.5px solid var(--you); background: linear-gradient(var(--you), var(--you)) center / 100% 1.5px no-repeat; }
+.ladder .mk-block { height: 9px; margin-top: 5px; border-radius: 2px; background: var(--figure); box-shadow: 0 0 0 2px var(--print), 0 0 0 3px var(--rule); }
+.ladder .v { font-family: var(--mono); font-size: 13.5px; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ladder .who { overflow-wrap: anywhere; }
+.ladder .who .m { font-size: 13px; }
+.ladder .d { color: var(--ink-2); font-size: 13.5px; white-space: nowrap; text-align: right; }
+.ladder li.is-piece { font-weight: 600; }
+.ladder .apart { margin: 8px 0 0; font-size: 13.5px; line-height: 1.5; color: var(--ink-2); }
+
+.built-intro { margin: 0 0 10px; font-size: 14px; line-height: 1.5; color: var(--ink-2); }
+.built + .built-intro { margin: 12px 0 0; }
+.built { margin: 0; padding: 0; list-style: none; }
+.built li { display: grid; grid-template-columns: 5.2em 4.6em minmax(0, 1fr); gap: 10px; align-items: baseline; padding: 7px 0; border-bottom: 1px solid var(--rule); font-size: 14.5px; line-height: 1.4; }
+.built li:first-child { border-top: 1px solid var(--rule); }
+.built .v { font-family: var(--mono); font-size: 13.5px; text-align: right; }
+.built .src { color: var(--ink-2); font-size: 13.5px; }
+
+/* ── the small print ────────────────────────────────────────── */
+.notes { margin: 30px 0 0; font-size: 13px; line-height: 1.55; color: var(--ink-2); text-wrap: pretty; }
+.notes p { margin: 0 0 6px; }
+.foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 16px; margin: 16px 0 0; padding-top: 6px; border-top: 1px solid var(--rule); font-size: 14px; color: var(--ink-2); }
+.flat { display: inline-flex; align-items: center; min-height: 44px; color: var(--ink); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; }
+
+/* ── wide screens: the drawing stands beside the answer ─────── */
+@media (min-width: 900px) {
+  main.is-ready {
+    max-width: 1060px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 420px;
+    column-gap: 64px;
+    align-items: start;
+    padding-top: 56px;
+  }
+  main.is-ready > * { grid-column: 1; }
+  main.is-ready > .fig { grid-column: 2; grid-row: 1 / span 8; position: sticky; top: 32px; margin-top: 0; }
+}
