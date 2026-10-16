@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex, nofollow">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src https:; connect-src https://*.supabase.co; base-uri 'none'; form-action 'none'">
+<meta name="color-scheme" content="light dark">
+<title>Finds</title>
+<link rel="icon" href="/favicon.svg">
+<link rel="stylesheet" href="/cf3e5dd322f05a/finds.css">
+</head>
+<body>
+<header class="top">
+  <h1>Finds</h1>
+  <span class="sub">Yahoo Auctions, PayPay Flea and Mercari listings Tori checked against your measurements.</span>
+  <span class="count" id="count"></span>
+</header>
+<p class="state" id="state">Loading your finds…</p>
+<div class="wrap" id="wrap" hidden>
+  <details class="filters" id="filters">
+  <summary>Filters</summary>
+  <aside>
+    <fieldset>
+      <label class="lbl" for="q">Search</label>
+      <input type="search" id="q" placeholder="title, brand, size…">
+    </fieldset>
+    <fieldset>
+      <label class="lbl" for="sort">Sort</label>
+      <select id="sort">
+        <option value="newest">Newest found</option>
+        <option value="taste">Best taste match</option>
+        <option value="fit">Fits first</option>
+        <option value="price_asc">Price: low to high</option>
+        <option value="price_desc">Price: high to low</option>
+        <option value="ending">Auction ending soon</option>
+      </select>
+    </fieldset>
+    <fieldset><legend>Tier</legend><div class="chips" id="tier"></div></fieldset>
+    <fieldset><legend>Brand</legend><div class="chips" id="brand"></div></fieldset>
+    <fieldset><legend>Garment</legend><div class="chips" id="garment"></div></fieldset>
+    <fieldset><legend>Listing</legend><div class="chips" id="kind"></div></fieldset>
+    <fieldset><legend>Source</legend><div class="chips" id="source"></div></fieldset>
+    <fieldset>
+      <legend>Price (yen)</legend>
+      <div class="row2"><input type="number" id="pmin" placeholder="min" min="0" step="1000"><input type="number" id="pmax" placeholder="max" min="0" step="1000"></div>
+    </fieldset>
+    <button class="reset" id="reset" type="button">Reset filters</button>
+    <p class="legend"><b>Fit</b> means Tori compared the seller's measurements with your references and it passed. <b>Maybe</b> means there weren't enough measurements to check. Pieces that don't fit, hidden pieces and ended auctions are left off (saved ones stay). Save and Hide from the Telegram cards.</p>
+    <p class="legend" id="gen"></p>
+  </aside>
+  </details>
+  <main>
+    <div class="tabs" role="tablist" id="tabs"></div>
+    <div class="grid" id="grid"></div>
+  </main>
+</div>
+<noscript><p class="state">This page needs JavaScript.</p></noscript>
+<script type="module" src="/cf3e5dd322f05a/finds.js"></script>
+</body>
+</html>
