@@ -61,7 +61,7 @@ function layout() {
 function run(data) {
   layout();
   const items = data.items;
-  const state = { tab: "brands", q: "", sort: "fit", pmin: "", pmax: "", allBrands: false };
+  const state = { tab: "brands", q: "", sort: "fit", pmin: "", pmax: "", allBrands: false, combo: "" };
   SETS.forEach((k) => (state[k] = new Set()));
   try {
     const s = JSON.parse(localStorage.getItem("finds-state") || "{}");
@@ -123,7 +123,7 @@ function run(data) {
   $("pmin").addEventListener("input", (e) => { state.pmin = e.target.value; render(); });
   $("pmax").addEventListener("input", (e) => { state.pmax = e.target.value; render(); });
   $("reset").addEventListener("click", () => {
-    state.q = state.pmin = state.pmax = ""; SETS.forEach((k) => state[k].clear());
+    state.q = state.pmin = state.pmax = state.combo = ""; SETS.forEach((k) => state[k].clear());
     $("q").value = $("pmin").value = $("pmax").value = "";
     allChips(); render();
   });
@@ -204,6 +204,7 @@ function run(data) {
       const sw = el("span", "sw " + it.capsule.color); sw.setAttribute("aria-hidden", "true");
       cap.append(sw, el("span", null, it.capsule.text));
       body.append(cap);
+      if (it.capsule.pair) body.append(el("div", "pair " + it.capsule.pair.kind, (it.capsule.pair.kind === "new" ? "✦ " : "↔ ") + it.capsule.pair.text));
     }
     if (it.taste_reasons?.length) body.append(el("div", "why", it.taste_reasons.join(" · ")));
     // a miss's summary IS its first reason, so the expanded list starts after it
@@ -256,6 +257,12 @@ function run(data) {
       b.addEventListener("click", () => { state[k].delete(v); allChips(); render(); });
       box.append(b);
     }
+    if (state.combo) {
+      n++;
+      const b = el("button", "chip", "combo: " + state.combo); b.type = "button";
+      b.addEventListener("click", () => { state.combo = ""; render(); });
+      box.append(b);
+    }
     for (const [k, label] of [["q", () => "“" + state.q.trim() + "”"], ["pmin", () => "≥ " + yen(state.pmin)], ["pmax", () => "≤ " + yen(state.pmax)]]) {
       if (!String(state[k]).trim()) continue;
       n++;
@@ -277,7 +284,32 @@ function run(data) {
   }
   new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting) && shown < rows.length) more(); }, { rootMargin: "1200px 0px" }).observe($("sentinel"));
 
+  // Colour combos from wardrobe.md: wearable today, one find away (tap to see those finds), or
+  // further off. Counts follow the current tab, not the other filters.
+  function combos() {
+    const box = $("combos"); box.replaceChildren();
+    const list = data.combos || [];
+    box.hidden = !list.length;
+    if (!list.length) return;
+    box.append(el("span", "lbl", "Combos"));
+    const pool = tabItems(state.tab);
+    const rows2 = list.map((c) => {
+      const finds = pool.filter((it) => (it.capsule?.combos || []).includes(c.name));
+      return { c, n: finds.length, unlock: finds.filter((it) => it.capsule.pair?.kind === "new").length };
+    }).sort((a, b) => (b.c.ready - a.c.ready) || (b.unlock - a.unlock) || (b.n - a.n));
+    for (const { c, n, unlock } of rows2) {
+      const b = el("button", "combo" + (c.ready ? " ready" : unlock ? " near" : " far")); b.type = "button";
+      b.setAttribute("aria-pressed", String(state.combo === c.name));
+      const sws = el("span", "sws"); c.colors.forEach((col) => sws.append(el("span", "sw " + col)));
+      b.append(sws, el("span", "nm", c.name), el("small", null, c.ready ? (n ? n + " that pair" : "wearable") : unlock ? unlock + " to unlock" : "2+ pieces away"));
+      b.title = (c.note ? c.note + ". " : "") + (c.pieces.length ? "You own: " + c.pieces.join(", ") : "");
+      if (!n) b.disabled = true;
+      b.addEventListener("click", () => { state.combo = state.combo === c.name ? "" : c.name; render(); });
+      box.append(b);
+    }
+  }
   function render() {
+    combos();
     const q = state.q.trim().toLowerCase();
     rows = tabItems(state.tab).filter((it) =>
       (!state.tier.size || state.tier.has(it.tier)) &&
@@ -288,6 +320,7 @@ function run(data) {
       (!state.silhouette.size || state.silhouette.has(it.silhouette)) &&
       (!state.tori.size || state.tori.has(toriKey(it))) &&
       (!state.capsule.size || state.capsule.has(capKey(it))) &&
+      (!state.combo || (it.capsule?.combos || []).includes(state.combo)) &&
       (state.pmin === "" || (it.price ?? 0) >= +state.pmin) && (state.pmax === "" || (it.price ?? 0) <= +state.pmax) &&
       (!q || [it.title, it.brand, it.tag_size, it.condition, it.capsule?.text, ...(it.fit_lines || [])].join(" ").toLowerCase().includes(q)));
     rows.sort(sorters[state.sort] || sorters.fit);
