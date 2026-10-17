@@ -4,7 +4,10 @@ const https = (u) => (typeof u === "string" && /^https:\/\//.test(u) ? u : null)
 const yen = (n) => (n == null ? "" : "¥" + Number(n).toLocaleString("ja-JP"));
 const SOURCE = { yahoo: "Yahoo Auctions", flea: "PayPay Flea", mercari: "Mercari" };
 const TABS = { brands: "My brands", discover: "Discover", saved: "Saved" };
-const SETS = ["tier", "brand", "garment", "kind", "source"];
+const SETS = ["tier", "brand", "garment", "kind", "source", "silhouette", "tori"];
+const SIL = { slim: "Slim", regular: "Regular", roomy: "Roomy", unknown: "Unknown" };
+const TORI = { pass: "Tori ✓", miss: "Tori ✗", pending: "Not checked yet" };
+const toriKey = (it) => it.tori || "pending";
 
 // The signed link rides in the FRAGMENT, so it never reaches this host. It decodes to the full
 // function URL. The host is pinned by its SHA-256, so a link pointing at someone else's Supabase
@@ -80,6 +83,8 @@ function run(data) {
     });
   }
   chips("tier", ["fit", "maybe"], "tier", { fit: "Fit", maybe: "Maybe" });
+  chips("silhouette", ["slim", "regular", "roomy", "unknown"], "silhouette", SIL);
+  chips("tori", ["pass", "miss", "pending"], "tori", TORI);
   chips("garment", ["tops", "bottoms"], "garment", { tops: "Tops / outerwear", bottoms: "Bottoms" });
   chips("kind", ["fixed", "auction"], "kind", { fixed: "Buy now", auction: "Auction" });
   chips("source", ["yahoo", "flea", "mercari"].filter((s) => items.some((i) => i.source === s)), "source", SOURCE);
@@ -113,6 +118,7 @@ function run(data) {
       const t = el("span", "taste" + (it.taste_score >= 8 ? " strong" : it.taste_score < 5 ? " low" : ""), "taste " + Number(it.taste_score).toFixed(1));
       img.append(t);
     }
+    if (it.tori) img.append(el("span", "tori " + it.tori, TORI[it.tori]));
     const body = el("div", "body");
     body.append(el("div", "brand", it.brand + (it.garment ? " · " + it.garment : "")));
     const title = el("div", "title", it.title); title.lang = "ja"; body.append(title);
@@ -121,9 +127,10 @@ function run(data) {
     body.append(price);
     const meta = el("div", "meta");
     [it.condition, "size " + (it.tag_size || "?"), SOURCE[it.source]].filter(Boolean).forEach((m) => meta.append(el("span", null, m)));
+    if (it.silhouette && it.silhouette !== "unknown") meta.append(el("span", "sil " + it.silhouette, SIL[it.silhouette]));
     body.append(meta);
     if (it.taste_reasons?.length) body.append(el("div", "why", it.taste_reasons.join(" · ")));
-    if (it.fit_lines?.length) { const ul = el("ul", "fitl"); it.fit_lines.forEach((l) => ul.append(el("li", null, l))); body.append(ul); }
+    if (it.fit_lines?.length) { const ul = el("ul", "fitl" + (it.tori === "miss" ? " miss" : "")); it.fit_lines.forEach((l) => ul.append(el("li", null, l))); body.append(ul); }
     const foot = el("div", "foot"); foot.append(el("span", "go", "Open on Buyee ↗"));
     const acts = el("span", "acts");
     if (it.saved) acts.append(el("span", "on", "Saved"));
@@ -141,7 +148,7 @@ function run(data) {
   const sorters = {
     newest: (a, b) => ts(b) - ts(a),
     taste: (a, b) => (b.taste_score ?? -1) - (a.taste_score ?? -1) || ts(b) - ts(a),
-    fit: (a, b) => (b.tier === "fit") - (a.tier === "fit") || (b.taste_score ?? -1) - (a.taste_score ?? -1),
+    fit: (a, b) => (b.tori === "pass") - (a.tori === "pass") || (b.tier === "fit") - (a.tier === "fit") || (b.taste_score ?? -1) - (a.taste_score ?? -1),
     price_asc: (a, b) => (a.price ?? Infinity) - (b.price ?? Infinity),
     price_desc: (a, b) => (b.price ?? -1) - (a.price ?? -1),
     ending: (a, b) => (a.is_fixed || !a.end_time ? Infinity : Date.parse(a.end_time)) - (b.is_fixed || !b.end_time ? Infinity : Date.parse(b.end_time)),
@@ -155,6 +162,8 @@ function run(data) {
       (!state.garment.size || state.garment.has(it.garment)) &&
       (!state.kind.size || state.kind.has(it.is_fixed ? "fixed" : "auction")) &&
       (!state.source.size || state.source.has(it.source)) &&
+      (!state.silhouette.size || state.silhouette.has(it.silhouette)) &&
+      (!state.tori.size || state.tori.has(toriKey(it))) &&
       (state.pmin === "" || (it.price ?? 0) >= +state.pmin) && (state.pmax === "" || (it.price ?? 0) <= +state.pmax) &&
       (!q || [it.title, it.brand, it.tag_size, it.condition, ...(it.fit_lines || [])].join(" ").toLowerCase().includes(q)));
     rows.sort(sorters[state.sort] || sorters.newest);
