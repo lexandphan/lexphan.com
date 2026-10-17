@@ -4,9 +4,11 @@ const https = (u) => (typeof u === "string" && /^https:\/\//.test(u) ? u : null)
 const yen = (n) => (n == null ? "" : "¥" + Number(n).toLocaleString("ja-JP"));
 const SOURCE = { yahoo: "Yahoo Auctions", flea: "PayPay Flea", mercari: "Mercari" };
 const TABS = { brands: "My brands", discover: "Discover", saved: "Saved" };
-const SETS = ["tier", "brand", "garment", "kind", "source", "silhouette", "tori"];
+const SETS = ["tier", "brand", "garment", "kind", "source", "silhouette", "tori", "capsule"];
 const SIL = { slim: "Slim", regular: "Regular", roomy: "Roomy", unknown: "Unknown" };
 const TORI = { pass: "Tori ✓", miss: "Tori ✗", pending: "Not checked" };
+const CAP = { gap: "Fills a gap", have: "Have one", dup: "Repeat (2+)", off: "Off-palette", none: "Colour unknown" };
+const capKey = (it) => it.capsule ? it.capsule.kind : "none";
 const toriKey = (it) => it.tori || "pending";
 
 // The signed link rides in the FRAGMENT, so it never reaches this host. It decodes to the full
@@ -71,7 +73,7 @@ function run(data) {
 
   const tabItems = (tab) => tab === "saved" ? items.filter((it) => it.saved) : items.filter((it) => (tab === "discover") === !!it.discover);
   const LABELS = { tier: { fit: "In range", maybe: "Tag size only" }, garment: { tops: "Tops / outerwear", bottoms: "Bottoms" },
-    kind: { fixed: "Buy now", auction: "Auction" }, source: SOURCE, silhouette: SIL, tori: TORI, brand: null };
+    kind: { fixed: "Buy now", auction: "Auction" }, source: SOURCE, silhouette: SIL, tori: TORI, capsule: CAP, brand: null };
 
   function chips(id, values, key) {
     const box = $(id); box.replaceChildren();
@@ -106,6 +108,7 @@ function run(data) {
   }
   function allChips() {
     chips("tori", ["pass", "miss", "pending"], "tori");
+    chips("capsule", ["gap", "have", "dup", "off", "none"], "capsule");
     chips("silhouette", ["slim", "regular", "roomy", "unknown"], "silhouette");
     chips("garment", ["tops", "bottoms"], "garment");
     chips("tier", ["fit", "maybe"], "tier");
@@ -196,6 +199,12 @@ function run(data) {
     if (it.condition) meta.append(el("span", "cond", it.condition));
     if (SOURCE[it.source]) meta.append(el("span", "srcname", SOURCE[it.source]));
     body.append(meta);
+    if (it.capsule) {
+      const cap = el("div", "cap " + it.capsule.kind);
+      const sw = el("span", "sw " + it.capsule.color); sw.setAttribute("aria-hidden", "true");
+      cap.append(sw, el("span", null, it.capsule.text));
+      body.append(cap);
+    }
     if (it.taste_reasons?.length) body.append(el("div", "why", it.taste_reasons.join(" · ")));
     // a miss's summary IS its first reason, so the expanded list starts after it
     const lines = [...new Set(it.fit_lines || [])].slice(it.tori === "miss" ? 1 : 0);
@@ -226,12 +235,14 @@ function run(data) {
 
   const ts = (it) => (it.found_at ? Date.parse(it.found_at) : 0);
   const rank = { pass: 2, pending: 1, miss: 0 };
+  const capRank = { gap: 4, have: 3, dup: 2, none: 1, off: 0 };
   const sorters = {
     newest: (a, b) => ts(b) - ts(a),
     taste: (a, b) => (b.taste_score ?? -1) - (a.taste_score ?? -1) || ts(b) - ts(a),
     fit: (a, b) => rank[toriKey(b)] - rank[toriKey(a)] || (b.taste_score ?? -1) - (a.taste_score ?? -1) || (b.tier === "fit") - (a.tier === "fit") || ts(b) - ts(a),
     price_asc: (a, b) => (a.price ?? Infinity) - (b.price ?? Infinity),
     price_desc: (a, b) => (b.price ?? -1) - (a.price ?? -1),
+    capsule: (a, b) => capRank[capKey(b)] - capRank[capKey(a)] || rank[toriKey(b)] - rank[toriKey(a)] || ts(b) - ts(a),
     ending: (a, b) => (a.is_fixed || !a.end_time ? Infinity : Date.parse(a.end_time)) - (b.is_fixed || !b.end_time ? Infinity : Date.parse(b.end_time)),
   };
 
@@ -276,8 +287,9 @@ function run(data) {
       (!state.source.size || state.source.has(it.source)) &&
       (!state.silhouette.size || state.silhouette.has(it.silhouette)) &&
       (!state.tori.size || state.tori.has(toriKey(it))) &&
+      (!state.capsule.size || state.capsule.has(capKey(it))) &&
       (state.pmin === "" || (it.price ?? 0) >= +state.pmin) && (state.pmax === "" || (it.price ?? 0) <= +state.pmax) &&
-      (!q || [it.title, it.brand, it.tag_size, it.condition, ...(it.fit_lines || [])].join(" ").toLowerCase().includes(q)));
+      (!q || [it.title, it.brand, it.tag_size, it.condition, it.capsule?.text, ...(it.fit_lines || [])].join(" ").toLowerCase().includes(q)));
     rows.sort(sorters[state.sort] || sorters.fit);
     const grid = $("grid"); grid.replaceChildren(); shown = 0;
     if (!rows.length) {
