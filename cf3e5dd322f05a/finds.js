@@ -192,6 +192,15 @@ function run(data) {
     const price = el("div", "price", yen(it.price));
     if (it.buy_now && it.buy_now !== it.price) price.append(el("small", null, "buy now " + yen(it.buy_now)));
     body.append(price);
+    // ~USD all-in: an estimate (fees, EMS by garment weight, ~15% duty), so it always carries "~"
+    // and opens to its parts.
+    if (it.landed) {
+      const L = it.landed, p = L.parts, d = el("details", "landed");
+      d.append(el("summary", null, "~$" + L.usd.toLocaleString() + " all-in" + (it.is_fixed ? "" : " (bid)")));
+      d.append(el("div", "parts", [`item $${p.item}`, p.domestic ? `to Buyee $${p.domestic}` : "", `Buyee $${p.buyee}`,
+        `shipping $${p.shipping} (~${L.kg}kg EMS)`, `duty ~$${p.duty}`].filter(Boolean).join(" · ") + (L.rateFallback ? " · rate offline, estimated" : "")));
+      body.append(d);
+    }
     const meta = el("div", "meta");
     meta.append(el("span", null, "size " + (it.tag_size || "?")));
     if (it.silhouette && it.silhouette !== "unknown") meta.append(el("span", "sil " + it.silhouette, SIL[it.silhouette]));
