@@ -20,7 +20,7 @@
 <p class="state" id="state">Loading your finds…</p>
 <div class="wrap" id="wrap" hidden>
   <details class="filters" id="filters">
-  <summary>Filters</summary>
+  <summary><span>Filters</span><span class="nact" id="nact"></span></summary>
   <aside>
     <fieldset>
       <label class="lbl" for="q">Search</label>
@@ -29,33 +29,38 @@
     <fieldset>
       <label class="lbl" for="sort">Sort</label>
       <select id="sort">
+        <option value="fit">Tori ✓ first</option>
         <option value="newest">Newest found</option>
         <option value="taste">Best taste match</option>
-        <option value="fit">Fits first</option>
         <option value="price_asc">Price: low to high</option>
         <option value="price_desc">Price: high to low</option>
         <option value="ending">Auction ending soon</option>
       </select>
     </fieldset>
-    <fieldset><legend>Tier</legend><div class="chips" id="tier"></div></fieldset>
-    <fieldset><legend>Brand</legend><div class="chips" id="brand"></div></fieldset>
-    <fieldset><legend>Silhouette</legend><div class="chips" id="silhouette"></div></fieldset>
     <fieldset><legend>Tori's check</legend><div class="chips" id="tori"></div></fieldset>
+    <fieldset><legend>Silhouette</legend><div class="chips" id="silhouette"></div></fieldset>
     <fieldset><legend>Garment</legend><div class="chips" id="garment"></div></fieldset>
+    <fieldset><legend>Brand</legend><div class="chips" id="brand"></div><button class="more" id="brandmore" type="button" hidden></button></fieldset>
+    <fieldset><legend>Measurements</legend><div class="chips" id="tier"></div></fieldset>
     <fieldset><legend>Listing</legend><div class="chips" id="kind"></div></fieldset>
     <fieldset><legend>Source</legend><div class="chips" id="source"></div></fieldset>
     <fieldset>
       <legend>Price (yen)</legend>
-      <div class="row2"><input type="number" id="pmin" placeholder="min" min="0" step="1000"><input type="number" id="pmax" placeholder="max" min="0" step="1000"></div>
+      <div class="row2"><input type="number" id="pmin" placeholder="min" min="0" step="1000" inputmode="numeric"><input type="number" id="pmax" placeholder="max" min="0" step="1000" inputmode="numeric"></div>
     </fieldset>
-    <button class="reset" id="reset" type="button">Reset filters</button>
-    <p class="legend"><b>Fit</b> = seller's measurements inside your windows. <b>Maybe</b> = no measurements, tag size plausible. Silhouette comes from chest ease (tops) or thigh and hem width (bottoms). <b>Tori ✓</b> = it also sits like one of your reference garments (that's what earns a Telegram card); <b>Tori ✗</b> shows why not. Hidden pieces and ended auctions are left off (saved ones stay). Save and Hide from the Telegram cards.</p>
+    <div class="aside-actions">
+      <button class="show" id="show" type="button"></button>
+      <button class="reset" id="reset" type="button">Reset filters</button>
+    </div>
+    <p class="legend"><b>Tori ✓</b> = it sits like one of your reference garments (that's what earns a Telegram card); <b>Tori ✗</b> shows why not. <b>In range</b> = the seller's measurements fall inside your windows; <b>Tag size only</b> = no measurements, tag size plausible. Silhouette comes from chest ease (tops) or thigh and hem width (bottoms). Hidden pieces and ended auctions are left off (saved ones stay). Save and Hide from the Telegram cards.</p>
     <p class="legend" id="gen"></p>
   </aside>
   </details>
   <main>
     <div class="tabs" role="tablist" id="tabs"></div>
+    <div class="active" id="active" hidden></div>
     <div class="grid" id="grid"></div>
+    <div class="sentinel" id="sentinel"></div>
   </main>
 </div>
 <noscript><p class="state">This page needs JavaScript.</p></noscript>
