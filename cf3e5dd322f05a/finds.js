@@ -178,19 +178,20 @@ function run(data) {
     btn.disabled = false;
   }
   function card(it) {
-    const c = el("article", "card" + (it.saved ? " saved" : ""));
+    const c = el("article", "card" + (it.saved ? " saved" : "") + (it.sold ? " sold" : ""));
     const go = https(it.buyee_url);
     const img = link("img", go); img.setAttribute("aria-label", it.title);
     const src = https(it.image_url);
     if (src) { const i = el("img"); i.src = src; i.alt = ""; i.loading = "lazy"; i.decoding = "async"; i.referrerPolicy = "no-referrer"; img.append(i); }
     else img.append(el("span", "noimg", "no image"));
-    img.append(el("span", "badge tori " + toriKey(it), it.tori ? TORI[it.tori] : "Tori —"), el("span", "badge kind", endLabel(it)));
+    img.append(el("span", "badge tori " + toriKey(it), it.tori ? TORI[it.tori] : "Tori —"), el("span", "badge kind", it.sold ? (it.is_fixed ? "sold" : "ended") : endLabel(it)));
     if (it.taste_score != null) img.append(el("span", "badge taste" + (it.taste_score >= 8 ? " strong" : it.taste_score < 5 ? " low" : ""), "taste " + Number(it.taste_score).toFixed(1)));
     const body = el("div", "body");
     body.append(el("div", "brand", it.brand + (it.garment ? " · " + it.garment : "")));
     const title = link("title", go, it.title); title.lang = "ja"; body.append(title);
     const price = el("div", "price", yen(it.price));
     if (it.buy_now && it.buy_now !== it.price) price.append(el("small", null, "buy now " + yen(it.buy_now)));
+    if (it.price_was && it.price_was > (it.price ?? 0)) price.append(el("small", "was", "was " + yen(it.price_was)));
     body.append(price);
     // ~USD all-in: an estimate (fees, EMS by garment weight, ~15% duty), so it always carries "~"
     // and opens to its parts.

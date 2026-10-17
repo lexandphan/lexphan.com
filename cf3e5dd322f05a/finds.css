@@ -71,6 +71,7 @@ main { min-width: 0; }
 .sentinel { height: 1px; }
 .card { position: relative; display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; box-shadow: var(--shadow); min-width: 0; }
 .card.saved { border-color: var(--fit); }
+.card.sold .img img { filter: grayscale(1); opacity: .6; } .price .was { color: var(--accent); text-decoration: line-through; }
 .card .media { position: relative; }
 .card .savebtn { position: absolute; right: 4px; bottom: 4px; width: 44px; height: 44px; display: grid; place-items: center; background: none; border: 0; padding: 0; cursor: pointer; font-size: 20px; line-height: 1; color: var(--fg); text-shadow: 0 0 3px var(--surface), 0 0 6px var(--surface); }
 .card .savebtn[aria-pressed="true"] { color: var(--fit); }
