@@ -159,6 +159,21 @@ function run(data) {
     btn.disabled = false;
     setTimeout(() => btn.replaceChildren(...was), 2500);
   }
+  // ☆ Save, the page's one write: POST with the same signed link. Optimistic, then settles on what
+  // the server says the row really is. A row unsaved on the Saved tab stays put until the next render.
+  async function toggleSave(it, btn, c) {
+    const want = !it.saved;
+    const show = (on) => { const was = it.saved; it.saved = on; c.classList.toggle("saved", on); if (was !== on) tabs(); btn.textContent = on ? "★" : "☆";
+      btn.setAttribute("aria-pressed", String(on)); btn.setAttribute("aria-label", on ? "Unsave" : "Save"); };
+    show(want); btn.disabled = true;
+    try {
+      const u = new URL(API); u.searchParams.set("save", it.id); u.searchParams.set("on", want ? "1" : "0");
+      const res = await fetch(u, { method: "POST", referrerPolicy: "no-referrer" });
+      const j = res.ok ? await res.json() : null;
+      show(j ? !!j.saved : !want);
+    } catch { show(!want); }
+    btn.disabled = false;
+  }
   function card(it) {
     const c = el("article", "card" + (it.saved ? " saved" : ""));
     const go = https(it.buyee_url);
@@ -194,14 +209,18 @@ function run(data) {
     body.append(v);
     const foot = el("div", "foot");
     const g = link("go", go); g.append(el("span", "full", "Open on\u00a0"), "Buyee ↗"); foot.append(g);
-    if (it.saved) foot.append(el("span", "on", "Saved"));
     if (it.measured) {
       const f = el("button", "fitbtn"); f.type = "button"; f.append(el("span", "ic", "📐 "), "Fit"); f.setAttribute("aria-label", "Compare with your reference garments");
       f.addEventListener("click", () => openFit(it.id, f));
       foot.append(f);
     }
     const s = https(it.source_url); if (s) foot.append(link("src", s, "source"));
-    c.append(img, body, foot);
+    const media = el("div", "media"); media.append(img);
+    const sv = el("button", "savebtn"); sv.type = "button";
+    sv.textContent = it.saved ? "★" : "☆"; sv.setAttribute("aria-pressed", String(!!it.saved)); sv.setAttribute("aria-label", it.saved ? "Unsave" : "Save");
+    sv.addEventListener("click", () => toggleSave(it, sv, c));
+    media.append(sv);
+    c.append(media, body, foot);
     return c;
   }
 
@@ -262,7 +281,7 @@ function run(data) {
     rows.sort(sorters[state.sort] || sorters.fit);
     const grid = $("grid"); grid.replaceChildren(); shown = 0;
     if (!rows.length) {
-      grid.append(el("div", "empty", state.tab === "saved" ? "Nothing saved yet. Tap Save on a Telegram card and it collects here."
+      grid.append(el("div", "empty", state.tab === "saved" ? "Nothing saved yet. Tap ☆ on a listing, or Save on a Telegram card."
         : state.tab === "discover" ? "No discoveries yet." : "Nothing matches these filters."));
     }
     more();
