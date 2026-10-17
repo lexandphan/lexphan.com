@@ -41,10 +41,12 @@ async function main() {
   } catch { return fail("Couldn't reach your finds. Check your connection and reload."); }
   if (!Array.isArray(data?.items)) return fail("Something's off with this link. Send Tori \"finds\" for a fresh one.");
   $("state").hidden = true; $("wrap").hidden = false;
+  API = url;
   if (matchMedia("(min-width: 761px)").matches) $("filters").open = true;
   run(data);
 }
 
+let API = null;   // the signed buyee-page URL this page was opened with
 const PAGE = 48;
 const BRANDS_SHOWN = 10;
 // Phone layout: "l2" two compact columns, "l1" one column. Overridable for previews.
@@ -132,6 +134,7 @@ function run(data) {
   // One line for the card: a pass names the reference it sits like; a miss leads with its first reason.
   function verdictLine(it) {
     const lines = it.fit_lines || [];
+    if (it.tori === "pass" && /^fits your body/i.test(lines[0] || "")) return lines[0].replace(/^fits your body/i, "Fits your body");
     if (it.tori === "pass") { const ref = lines.find((l) => /^vs your /i.test(l)); return ref ? "Sits like your " + ref.replace(/^vs your /i, "").replace(/\s*\(.*$/, "").replace(/:$/, "") : "Sits like your references"; }
     if (it.tori === "miss") return lines[0] || "Doesn't match your references";
     return lines[0] === "no measurements" || !it.fit_lines?.length ? "No measurements to check" : "Not checked yet";
@@ -140,6 +143,21 @@ function run(data) {
     const a = el("a", cls, text); a.target = "_blank"; a.rel = "noopener noreferrer";
     if (href) a.href = href;
     return a;
+  }
+  // Same viewer as the Telegram card's Fit view; built on first tap, reused after. Same tab, so
+  // Back returns here (a window.open after an await is blocked on iOS).
+  async function openFit(id, btn) {
+    const was = [...btn.childNodes].map((n) => n.cloneNode(true));
+    btn.disabled = true; btn.textContent = "…";
+    try {
+      const u = new URL(API); u.searchParams.set("fit", id);
+      const res = await fetch(u, { referrerPolicy: "no-referrer" });
+      const j = res.ok ? await res.json() : null;
+      if (j && https(j.url)) { location.href = j.url; return; }
+      btn.textContent = res.status === 404 ? "No fit" : "Try again";
+    } catch { btn.textContent = "Try again"; }
+    btn.disabled = false;
+    setTimeout(() => btn.replaceChildren(...was), 2500);
   }
   function card(it) {
     const c = el("article", "card" + (it.saved ? " saved" : ""));
@@ -177,6 +195,11 @@ function run(data) {
     const foot = el("div", "foot");
     const g = link("go", go); g.append(el("span", "full", "Open on\u00a0"), "Buyee ↗"); foot.append(g);
     if (it.saved) foot.append(el("span", "on", "Saved"));
+    if (it.measured) {
+      const f = el("button", "fitbtn"); f.type = "button"; f.append(el("span", "ic", "📐 "), "Fit"); f.setAttribute("aria-label", "Compare with your reference garments");
+      f.addEventListener("click", () => openFit(it.id, f));
+      foot.append(f);
+    }
     const s = https(it.source_url); if (s) foot.append(link("src", s, "source"));
     c.append(img, body, foot);
     return c;
