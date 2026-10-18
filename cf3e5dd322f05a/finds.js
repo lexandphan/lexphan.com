@@ -10,6 +10,18 @@ const TORI = { pass: "Tori ✓", miss: "Tori ✗", pending: "Not checked" };
 const CAP = { gap: "Fills a gap", have: "Have one", dup: "Repeat (2+)", off: "Off-palette", none: "Colour unknown" };
 const capKey = (it) => it.capsule ? it.capsule.kind : "none";
 const toriKey = (it) => it.tori || "pending";
+// Fresh: how much more often a find surfaces early. A weighted shuffle, not a ranking: Tori ✓ and
+// strong taste float up, everything else still gets turns (taste drifts ~1pt between runs, and
+// most finds have no score at all).
+function freshWeight(it) {
+  let w = { pass: 3, pending: 1.5, miss: 1 }[toriKey(it)];
+  if (it.taste_score != null) w *= it.taste_score >= 8 ? 2 : it.taste_score < 5 ? 0.5 : 1;
+  const k = capKey(it);
+  if (k === "gap" || it.capsule?.pair?.kind === "new") w *= 1.5;
+  else if (k === "dup" || k === "off") w *= 0.7;
+  if (it.found_at && Date.now() - Date.parse(it.found_at) < 2 * 864e5) w *= 1.5;
+  return w;
+}
 
 // The signed link rides in the FRAGMENT, so it never reaches this host. It decodes to the full
 // function URL. The host is pinned by its SHA-256, so a link pointing at someone else's Supabase
@@ -51,6 +63,8 @@ async function main() {
 let API = null;   // the signed buyee-page URL this page was opened with
 const PAGE = 48;
 const BRANDS_SHOWN = 10;
+const SEEN_MS = 1000;         // half a card on screen this long = seen (a flick past doesn't count)
+const SEEN_FLUSH_MS = 5000;   // seen ids go up in batches this often, and on leaving
 // Phone layout: "l2" two compact columns, "l1" one column. Overridable for previews.
 function layout() {
   let l = "l2";
@@ -61,15 +75,18 @@ function layout() {
 function run(data) {
   layout();
   const items = data.items;
-  const state = { tab: "brands", q: "", sort: "fit", pmin: "", pmax: "", allBrands: false, combo: "" };
+  const state = { tab: "brands", q: "", sort: "fresh", pmin: "", pmax: "", allBrands: false, combo: "" };
   SETS.forEach((k) => (state[k] = new Set()));
   try {
     const s = JSON.parse(localStorage.getItem("finds-state") || "{}");
     for (const k of ["tab", "q", "sort", "pmin", "pmax"]) if (typeof s[k] === "string") state[k] = s[k];
     for (const k of SETS) if (Array.isArray(s[k])) state[k] = new Set(s[k]);
+    // Fresh became the default on 2026-10-18. A sort saved before then switches only if it was the old
+    // default ("fit"); one picked on purpose (price, ending soon…) stays.
+    if (s.v !== 2 && (!s.sort || s.sort === "fit")) state.sort = "fresh";
   } catch {}
   if (!TABS[state.tab]) state.tab = "brands";
-  if (!$("sort").querySelector(`option[value="${state.sort}"]`)) state.sort = "fit";
+  if (!$("sort").querySelector(`option[value="${state.sort}"]`)) state.sort = "fresh";
 
   const tabItems = (tab) => tab === "saved" ? items.filter((it) => it.saved) : items.filter((it) => (tab === "discover") === !!it.discover);
   const LABELS = { tier: { fit: "In range", maybe: "Tag size only" }, garment: { tops: "Tops / outerwear", bottoms: "Bottoms" },
@@ -179,6 +196,7 @@ function run(data) {
   }
   function card(it) {
     const c = el("article", "card" + (it.saved ? " saved" : "") + (it.sold ? " sold" : ""));
+    c.dataset.id = it.id;
     const go = https(it.buyee_url);
     const img = link("img", go); img.setAttribute("aria-label", it.title);
     const src = https(it.image_url);
@@ -247,7 +265,21 @@ function run(data) {
   const ts = (it) => (it.found_at ? Date.parse(it.found_at) : 0);
   const rank = { pass: 2, pending: 1, miss: 0 };
   const capRank = { gap: 4, have: 3, dup: 2, none: 1, off: 0 };
+  // Fresh order, fixed for this visit: seen-ness as of opening and one weighted draw per find. Seen
+  // marks made while scrolling count from the next open, so nothing jumps under a thumb. The draw is
+  // kept for this tab, so coming Back from the fit viewer (a reload when the browser didn't keep the
+  // page) restores the same order and scroll instead of reshuffling. A refresh or a new link draws anew.
+  const back = (() => { try { return performance.getEntriesByType("navigation")[0]?.type === "back_forward"; } catch { return false; } })();
+  let snap = null;
+  if (back) try { snap = JSON.parse(sessionStorage.getItem("finds-fresh") || "null"); } catch {}
+  const seenAt = new Map(items.map((it) => [it.id, snap?.seen?.[it.id] ?? ((it.seen_at && Date.parse(it.seen_at)) || 0)]));
+  const luck = new Map(items.map((it) => [it.id, snap?.luck?.[it.id] ?? Math.random() ** (1 / freshWeight(it))]));
+  try { sessionStorage.setItem("finds-fresh", JSON.stringify({ seen: Object.fromEntries(seenAt), luck: Object.fromEntries(luck) })); } catch {}
   const sorters = {
+    fresh: (a, b) => {
+      const sa = seenAt.get(a.id), sb = seenAt.get(b.id);
+      return (sa > 0) - (sb > 0) || (sa ? sa - sb : luck.get(b.id) - luck.get(a.id));   // new, then longest-ago seen
+    },
     newest: (a, b) => ts(b) - ts(a),
     taste: (a, b) => (b.taste_score ?? -1) - (a.taste_score ?? -1) || ts(b) - ts(a),
     fit: (a, b) => rank[toriKey(b)] - rank[toriKey(a)] || (b.taste_score ?? -1) - (a.taste_score ?? -1) || (b.tier === "fit") - (a.tier === "fit") || ts(b) - ts(a),
@@ -284,11 +316,53 @@ function run(data) {
     $("nact").textContent = n ? String(n) : "";
   }
 
-  let rows = [], shown = 0;
+  // Seen = half a card on screen for SEEN_MS. Ordering-only state: a lost batch just means a find
+  // shows as new once more.
+  const sent = new Set(), queue = new Set(), timers = new Map(), fails = new Map();
+  const seenObs = new IntersectionObserver((es) => {
+    for (const e of es) {
+      const id = e.target.dataset.id;
+      if (e.intersectionRatio < 0.49) { clearTimeout(timers.get(id)); timers.delete(id); }
+      else if (!timers.has(id) && !sent.has(id) && !queue.has(id)) timers.set(id, setTimeout(() => { timers.delete(id); queue.add(id); }, SEEN_MS));
+    }
+  }, { threshold: 0.5 });
+  const stopTimers = () => { timers.forEach((t) => clearTimeout(t)); timers.clear(); };
+  function flushSeen(leaving) {
+    while (queue.size) {
+      const ids = [...queue].slice(0, 200);
+      ids.forEach((id) => { queue.delete(id); sent.add(id); });
+      const u = new URL(API); u.searchParams.set("seen", "1");
+      const body = JSON.stringify({ ids });
+      if (leaving && navigator.sendBeacon?.(u, body)) continue;
+      fetch(u, { method: "POST", body, keepalive: leaving, referrerPolicy: "no-referrer" })
+        .then((r) => { if (!r.ok) throw new Error(String(r.status)); })
+        .catch(() => ids.forEach((id) => {   // three tries, then let it go (an expired link 404s forever)
+          const n = (fails.get(id) || 0) + 1; fails.set(id, n);
+          if (n < 3) { sent.delete(id); queue.add(id); }
+        }));
+      if (!leaving) break;   // one batch per tick
+    }
+  }
+  setInterval(() => flushSeen(false), SEEN_FLUSH_MS);
+  // Hidden: send what's queued and stop the clocks (a card half-watched before switching away isn't
+  // seen). Visible again: re-observe, which re-reports whatever is on screen.
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") { stopTimers(); flushSeen(true); }
+    else { seenObs.disconnect(); $("grid").querySelectorAll("article").forEach((c) => seenObs.observe(c)); }
+  });
+  addEventListener("pagehide", () => {
+    flushSeen(true);
+    try { sessionStorage.setItem("finds-pos", JSON.stringify({ y: scrollY, n: shown })); } catch {}
+  });
+
+  let rows = [], shown = 0, firstSeen = -1;
   function more() {
     const grid = $("grid");
     const frag = document.createDocumentFragment();
-    rows.slice(shown, shown + PAGE).forEach((it) => frag.append(card(it)));
+    rows.slice(shown, shown + PAGE).forEach((it, i) => {
+      if (shown + i === firstSeen) frag.append(el("div", "seenhr", firstSeen ? "Seen before · oldest first" : "Nothing new here · seen before, oldest first"));
+      const c = card(it); frag.append(c); seenObs.observe(c);
+    });
     grid.append(frag);
     shown = Math.min(rows.length, shown + PAGE);
   }
@@ -333,20 +407,29 @@ function run(data) {
       (!state.combo || (it.capsule?.combos || []).includes(state.combo)) &&
       (state.pmin === "" || (it.price ?? 0) >= +state.pmin) && (state.pmax === "" || (it.price ?? 0) <= +state.pmax) &&
       (!q || [it.title, it.brand, it.tag_size, it.condition, it.capsule?.text, ...(it.fit_lines || [])].join(" ").toLowerCase().includes(q)));
-    rows.sort(sorters[state.sort] || sorters.fit);
+    // Saved is a short list he comes back to: a steady Tori ✓ order there, not a rotation.
+    const sort = state.sort === "fresh" && state.tab === "saved" ? "fit" : state.sort;
+    rows.sort(sorters[sort] || sorters.fresh);
+    firstSeen = sort === "fresh" ? rows.findIndex((it) => seenAt.get(it.id) > 0) : -1;
+    seenObs.disconnect(); stopTimers();
     const grid = $("grid"); grid.replaceChildren(); shown = 0;
     if (!rows.length) {
       grid.append(el("div", "empty", state.tab === "saved" ? "Nothing saved yet. Tap ☆ on a listing, or Save on a Telegram card."
         : state.tab === "discover" ? "No discoveries yet." : "Nothing matches these filters."));
     }
     more();
-    $("count").textContent = rows.length + " / " + tabItems(state.tab).length + " listings";
+    $("count").textContent = rows.length + " / " + tabItems(state.tab).length + " listings · " + rows.filter((it) => !seenAt.get(it.id)).length + " new";
     $("show").textContent = "Show " + rows.length + " result" + (rows.length === 1 ? "" : "s");
     activeChips();
-    try { localStorage.setItem("finds-state", JSON.stringify({ tab: state.tab, q: state.q, sort: state.sort, pmin: state.pmin, pmax: state.pmax, ...Object.fromEntries(SETS.map((k) => [k, [...state[k]]])) })); } catch {}
+    try { localStorage.setItem("finds-state", JSON.stringify({ v: 2, tab: state.tab, q: state.q, sort: state.sort, pmin: state.pmin, pmax: state.pmax, ...Object.fromEntries(SETS.map((k) => [k, [...state[k]]])) })); } catch {}
   }
   $("gen").textContent = "Live as of " + new Date(data.generated_at).toLocaleString();
   render();
+  if (back) try {
+    const pos = JSON.parse(sessionStorage.getItem("finds-pos") || "null");
+    while (pos && shown < Math.min(pos.n, rows.length)) more();
+    if (pos?.y) scrollTo(0, pos.y);
+  } catch {}
 }
 
 main();
