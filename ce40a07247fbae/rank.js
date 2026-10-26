@@ -1,7 +1,8 @@
 // The Rank screen: the queue grouped by ladder with a "Rank something" box, then the session's Views — bucket,
 // the thrown-card deck (deck.js), ask-kind / ask-city, the confirm sheet, filed. Every answer is one POST with the
-// step the View came from; a 409 swaps in where the session really is. Skip on a queued entry drops it from the
-// queue (it stays under Unranked in Lists); Skip on a re-rate just abandons it. Nothing is written before Save.
+// step the View came from; a 409 swaps in where the session really is. A question carries the View each answer
+// returns (`next`), so an answer is drawn on the tap and its POST runs behind it. Skip on a queued entry drops it from
+// the queue (it stays under Unranked in Lists); Skip on a re-rate just abandons it. Nothing is written before Save.
 import { $, esc, num, toast, haptic, hapticNote, remember, refocus } from "./ui.js";
 import { call, Gone } from "./api.js";
 import { deckBehaviour } from "./deck.js";
@@ -19,13 +20,19 @@ function bind(app, handlers) {
  *  couldn't reach Tori, a ▲/▼) puts it back. Dropped when the session ends (filed, skipped); another session starts empty. */
 let draft = null;
 
+/** An answer drawn ahead of its reply, still on its way. Every POST waits for it: its reply carries the step the next is for. */
+let pending = Promise.resolve();
+const ANSWER_MS = 8000;   // an answer whose reply hasn't come by then is lost: the session is reloaded
+
 /** One transition. `after(view)` runs before the re-render (the deck keeps the beaten opponent's score there). */
 async function op(app, name, body, after) {
   const v = app.state.session;
   if (!v || v.busy) return;
   v.busy = true;
+  await pending;
+  if (app.state.session !== v) return;   // the reply in flight redrew the session: this tap was on a card that is gone
   try {
-    const r = await call("POST", { op: name }, { id: v.id, step: v.step, ...body });
+    const r = await call("POST", { op: name }, { id: v.id, step: v.step, ...body }, name === "answer" ? ANSWER_MS : undefined);
     if (r.stale) { app.state.session = r.view; app.state.last = null; toast("That card had moved on — here's where it is"); renderRank(app); return; }
     app.state.session = r;
     if (after) after(r);
@@ -132,6 +139,34 @@ function renderAmbiguous(app, v) {
 
 // ---------- the question: the item pinned above, the opponent is the card ----------
 const dots = (i) => `<div class="dots" role="img" aria-label="question ${i + 1} of 4">${[0, 1, 2, 3].map((k) => `<i class="${k <= i ? "on" : ""}"></i>`).join("")}</div>`;
+const oppFace = (o) => `<div class="name">${esc(o.name)}</div><div class="sub">${meta([o.year, o.kind])}</div>`;
+/** Identical once `next` (the reply's lookahead) and `busy` (this page's) are set aside: both come from the API's one View shape. */
+const sameView = (a, b) => JSON.stringify({ ...a, next: undefined, busy: undefined }) === JSON.stringify({ ...b, next: undefined, busy: undefined });
+
+/** The reply to an answer drawn ahead. The View that was drawn (it is, unless the session moved on elsewhere): the screen stays, and
+ *  the reply's step and lookahead go into the drawn View, which the screen's handlers hold. Anything else is drawn in its place. */
+function landed(app, p, r) {
+  if (app.state.session !== p) return;   // he has left this session: nothing on screen is its
+  const view = r.stale ? r.view : r;
+  if (!r.stale && sameView(view, p)) { Object.assign(p, view); return; }
+  app.state.session = view; app.state.last = null;
+  if (app.state.screen !== "rank") return;   // Lists stays put: the Rank tab draws the session when he comes back
+  toast("That card had moved on — here's where it is");
+  renderRank(app);
+}
+/** No reply for an answer drawn ahead (dropped, timed out, a server error): it may or may not have landed, so draw the session from
+ *  where it really is. The reload is not returned: `pending` waiting on it would let a hung one (a dead zone) hold up every write. */
+function lost(app, p, e) {
+  if (app.state.session !== p) return;
+  if (e instanceof Gone) return app.needLink();
+  if (app.state.screen === "rank") toast("Couldn't reach Tori — here's where that rating stands");
+  call("GET", { session: p.id }, null, ANSWER_MS).then((view) => {
+    if (app.state.session !== p) return;   // he moved on while it loaded (a Skip, another rating): never pull him back
+    app.state.session = view; app.state.last = null;
+    if (app.state.screen === "rank") renderRank(app);
+  }, (err) => { if (err instanceof Gone && app.state.session === p) app.needLink(); });
+}
+
 function renderQuestion(app, v) {
   const o = v.opponent, me = v.item.name, last = app.state.last;
   const hint = `Swipe right if <b>${esc(me)}</b> is better, left if <b>${esc(o.name)}</b> is.`;
@@ -142,7 +177,7 @@ function renderQuestion(app, v) {
       <div class="card opp behind" aria-hidden="true"></div>
       <div class="card opp front anim" role="group" aria-label="${esc(o.name)}">
         <span class="stamp l ink">${esc(o.name)}</span><span class="stamp r ink">${esc(me)}</span>
-        <div class="name">${esc(o.name)}</div><div class="sub">${meta([o.year, o.kind])}</div>
+        ${oppFace(o)}
       </div>
     </div>
     <div class="live" id="live" aria-live="polite">${last ? `<b>${esc(last.name)}</b> sits at ${num(last.score)}` : hint}</div>
@@ -152,18 +187,35 @@ function renderQuestion(app, v) {
   const live = $("live");
   // The score line is a hold, not motion, so it stays 1.4 s for reduced-motion viewers too.
   if (last) { const shownLast = last; setTimeout(() => { if (app.state.last === shownLast && $("live") === live) live.innerHTML = hint; }, 1400); }
+  // The lookahead: an answer makes its View the session at once and posts behind it. A View drawn that way has no `next` until its reply
+  // lands, so an answer on it before then goes the old way (op), which waits for that reply.
+  let drawn = null;
+  const ahead = (a) => {
+    const p = app.state.session === v && !v.busy && v.next ? v.next[a] : null;
+    if (!p) return null;
+    v.busy = true; app.state.session = p;
+    const sent = pending.then(() => call("POST", { op: "answer" }, { id: v.id, step: v.step, answer: a }, ANSWER_MS));
+    pending = sent.then((r) => landed(app, p, r), (e) => lost(app, p, e)).catch((e) => console.error("answer", e));   // never a stuck queue
+    return p;
+  };
+  const show = (p) => { if (app.state.session === p) { app.state.last = p.last ?? null; renderRank(app); } };
   const d = deckBehaviour($("deck"), {
     onDrag(dx) { live.innerHTML = dx > 30 ? `<b>${esc(me)}</b> is better` : dx < -30 ? `<b>${esc(o.name)}</b> is better` : hint; },
-    onThrow(dir) { answer(dir > 0 ? "better" : "worse"); },
+    onCommit(dir) {
+      drawn = ahead(dir > 0 ? "better" : "worse");
+      if (drawn && drawn.kind === "question") $("deck").querySelector(".card.behind").innerHTML = oppFace(drawn.opponent);   // it rises during the throw
+    },
+    onThrow(dir) { const p = drawn; drawn = null; if (p) show(p); else answer(dir > 0 ? "better" : "worse"); },
   });
   // deck.js re-arms the card 260 ms into a throw, so a second throw's answer can fire after the first reply has put the next
   // View in. Answer only the View this card was drawn for: op() reads the session at call time and would post it at the new step.
   const answer = (a) => { if (app.state.session === v) op(app, "answer", { answer: a }, (r) => { app.state.last = r.last ?? null; }); };
+  const tap = (a) => { const p = ahead(a); if (p) show(p); else answer(a); };
   bind(app, (act) => {
     if (act === "right") d.throwCard(1);
     else if (act === "left") d.throwCard(-1);
-    else if (act === "same") answer("same");
-    else if (act === "tough") { toast("Swapped for another opponent"); answer("tough"); }
+    else if (act === "same") tap("same");
+    else if (act === "tough") { toast("Swapped for another opponent"); tap("tough"); }
     else if (act === "skip") op(app, "skip", {});
   });
 }

@@ -53,6 +53,7 @@ export function deckBehaviour(deck, opts) {
   async function throwCard(dir) {
     if (busy) return;
     busy = true; haptic("medium");
+    if (opts.onCommit) opts.onCommit(dir);   // before the behind card rises: the caller can draw the card that comes next into it
     card.classList.add("anim"); if (behind) behind.classList.add("anim");
     if (sl) sl.style.opacity = dir < 0 ? 1 : 0;
     if (sr) sr.style.opacity = dir > 0 ? 1 : 0;

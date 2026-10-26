@@ -25,14 +25,16 @@ export async function apiUrl(raw) {
 }
 export class Gone extends Error {}
 /** One call. Route params are added to the base (which keeps e and s in link mode). 409 → { stale: true, view };
- *  404 → Gone (the credential is dead; the caller shows how to get a fresh one). */
-export async function call(method, params, body) {
+ *  404 → Gone (the credential is dead; the caller shows how to get a fresh one). `timeoutMs` gives up on a request
+ *  that hangs, as a network error. */
+export async function call(method, params, body, timeoutMs) {
   const url = new URL(api.base);
   for (const [k, v] of Object.entries(params)) if (v != null) url.searchParams.set(k, v);
   const headers = {};
   if (api.initData) headers["x-tg-init-data"] = api.initData;
   if (body) headers["content-type"] = "application/json";
-  const res = await fetch(url, { method, headers, body: body ? JSON.stringify(body) : undefined, referrerPolicy: "no-referrer" });
+  const signal = timeoutMs && typeof AbortSignal.timeout === "function" ? AbortSignal.timeout(timeoutMs) : undefined;   // WebKit < 16 has none
+  const res = await fetch(url, { method, headers, body: body ? JSON.stringify(body) : undefined, referrerPolicy: "no-referrer", signal });
   if (res.status === 404) throw new Gone();
   if (res.status === 409) return await res.json();
   if (!res.ok) throw new Error(`http ${res.status}`);
