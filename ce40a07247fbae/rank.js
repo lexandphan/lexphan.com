@@ -1,8 +1,10 @@
-// The Rank screen: the queue grouped by ladder with a "Rank something" box, then the session's Views — bucket,
-// the thrown-card deck (deck.js), ask-kind / ask-city, the confirm sheet, filed. Every answer is one POST with the
+// The Rank screen: the queue grouped by ladder with a "Rank something" box, then the session's Views — a log's prompts (the
+// bucket's, before it; a notes-only session's `notes`, instead of it), bucket, the thrown-card deck (deck.js), ask-kind / ask-city,
+// the confirm sheet, filed, and `noted` (where a notes-only session's answers went). Every answer is one POST with the
 // step the View came from; a 409 swaps in where the session really is. A question carries the View each answer
 // returns (`next`), so an answer is drawn on the tap and its POST runs behind it. Skip on a queued entry drops it from
-// the queue (it stays under Unranked in Lists); Skip on a re-rate just abandons it. Nothing is written before Save.
+// the queue (it stays under Unranked in Lists); Skip on a re-rate just abandons it. Nothing is written before Save (a log's
+// prompt answers wait in localStorage until the Save that carries them).
 import { $, esc, num, toast, haptic, hapticNote, remember, refocus } from "./ui.js";
 import { call, Gone } from "./api.js";
 import { deckBehaviour } from "./deck.js";
@@ -16,9 +18,24 @@ function bind(app, handlers) {
   refocus(screen());
 }
 
-/** What has been typed on the confirm sheet, for one session: a re-render of the same session (a Lists round trip, a Save that
- *  couldn't reach Tori, a ▲/▼) puts it back. Dropped when the session ends (filed, skipped); another session starts empty. */
+/** What has been typed for one session — the confirm sheet's fields and a log's prompt answers — so a re-render of the same session (a
+ *  Lists round trip, a Save that couldn't reach Tori, a ▲/▼) puts it back. The answers are mirrored to localStorage as `tori-notes:<id>`
+ *  (a reload, or Telegram reopening the Mini App, resumes the prompts; every access is guarded — private mode or a webview may have no
+ *  storage) and dropped when the session ends: filed, noted, skipped. */
 let draft = null;
+const notesKey = (id) => `tori-notes:${id}`;
+function draftFor(id) {
+  if (draft && draft.id === id) return draft;
+  let kept = null;
+  try { kept = JSON.parse(localStorage.getItem(notesKey(id)) || "null"); } catch { /* no storage here: this open only */ }
+  // Answers are keyed by label, and a label is model output: a null-prototype map, so `constructor`, `toString` or `valueOf` is just a key.
+  draft = { id, note: "", override: "", year: "", author: "", answers: Object.assign(Object.create(null), kept && kept.answers), at: (kept && kept.at) || 0, prompts: (kept && kept.prompts) || null };
+  return draft;
+}
+function keepDraft(d) { try { localStorage.setItem(notesKey(d.id), JSON.stringify({ answers: d.answers, at: d.at, prompts: d.prompts })); } catch { /* best effort */ } }
+function dropDraft(id) { if (draft && draft.id === id) draft = null; try { localStorage.removeItem(notesKey(id)); } catch { /* best effort */ } }
+/** The answers as the API takes them: one per prompt that has words, in prompt order. */
+const notesOf = (d) => (d && d.prompts ? d.prompts.map((p) => ({ label: p.label, answer: (d.answers[p.label] || "").trim() })).filter((n) => n.answer) : []);
 
 /** An answer drawn ahead of its reply, still on its way. Every POST waits for it: its reply carries the step the next is for. */
 let pending = Promise.resolve();
@@ -49,13 +66,15 @@ export function renderRank(app) {
   const v = app.state.session;
   if (!v) return renderQueue(app);
   switch (v.kind) {
-    case "bucket": return renderBucket(app, v);
+    case "bucket": return v.prompts && v.prompts.length && draftFor(v.id).at < v.prompts.length ? renderPrompts(app, v) : renderBucket(app, v);
+    case "notes": return renderPrompts(app, v);
+    case "noted": return renderNoted(app, v);
     case "ask-kind": return renderAskKind(app, v);
     case "ask-city": return renderAskCity(app, v);
     case "question": return renderQuestion(app, v);
     case "confirm": return renderConfirm(app, v);
     case "filed": return renderFiled(app, v);
-    case "file-failed": return renderFailed(app, v);
+    case "file-failed": return v.notesOnly ? renderNotesFailed(app, v) : renderFailed(app, v);
     case "filing": return renderFiling(app, v);
     case "unreadable": return renderUnreadable(app, v);
     case "ambiguous": return renderAmbiguous(app, v);
@@ -63,7 +82,7 @@ export function renderRank(app) {
       // the server's home cache can keep a skipped entry in its queue for up to 60 s: drop it here at once (home is null on a `?s=` launch until it loads)
       const d = app.state.home && app.state.home.domains.find((x) => x.id === v.domain);
       if (d) d.queue = d.queue.filter((e) => e.name !== v.item.name);
-      app.state.session = null; draft = null; toast("Skipped — nothing written"); return renderQueue(app);
+      app.state.session = null; dropDraft(v.id); toast("Skipped — nothing written"); return renderQueue(app);
     }
     case "no-city": app.state.session = null; toast(`No city note called ${v.city}`); return renderQueue(app);
     default: app.state.session = null; toast("That rating is gone"); return renderQueue(app);
@@ -247,8 +266,7 @@ function renderAskCity(app, v) {
 
 // ---------- the confirm sheet: what Save will write, exactly ----------
 function renderConfirm(app, v) {
-  if (!draft || draft.id !== v.id) draft = { id: v.id, note: "", override: "", year: "", author: "" };
-  const typed = draft;   // the listeners below write here, even if the session ends (draft = null) while this sheet is still up
+  const typed = draftFor(v.id);   // the listeners below write here, even if the session ends (the draft dropped) while this sheet is still up
   const needYear = !v.item.known && v.item.year == null && (v.domain === "movie" || v.domain === "book");
   const needAuthor = !v.item.known && !v.item.author && v.domain === "book";
   const where = v.domain === "place" ? (v.city ?? "your vault") : v.label;
@@ -284,6 +302,8 @@ function renderConfirm(app, v) {
       if (Number.isFinite(y)) body.year = y;
       const a = needAuthor ? $("author").value.trim() : "";
       if (a) body.author = a;
+      const notes = notesOf(typed);
+      if (notes.length) body.notes = notes;
       op(app, "confirm", body);
     }
   });
@@ -292,7 +312,7 @@ function renderConfirm(app, v) {
 // ---------- filed: patch the home, open the ladder on the entry ----------
 async function renderFiled(app, v) {
   hapticNote("success");
-  app.state.session = null; draft = null;
+  app.state.session = null; dropDraft(v.id);
   app.state.highlight = { domain: v.domain, name: v.item.name };
   app.state.listTab = v.domain;
   app.state.kind = null; app.state.q = "";
@@ -344,7 +364,8 @@ function renderFailed(app, v) {
       if (Number.isFinite(y)) body.year = y;
       const a = v.reason === "needs-author" ? $("author").value.trim() : "";
       if (a) body.author = a;
-      op(app, "confirm", body);   // no score, no note: the engine files exactly what was confirmed
+      const notes = notesOf(draftFor(v.id)); if (notes.length) body.notes = notes;   // the draft is kept on a failed write: Save again carries the prompts' answers
+      op(app, "confirm", body);   // no score, no Why line: the engine files exactly what was confirmed
     }
   });
 }
@@ -352,6 +373,7 @@ function renderFailed(app, v) {
 // ---------- filing: a place's meal is logged and its city note is Tori's agent turn, started from the 📝 card the Save sent to Telegram; a film or book is here only while its write is still running ----------
 function renderFiling(app, v) {
   const place = v.domain === "place";
+  if (place) dropDraft(v.id);   // a place's confirm succeeded: its answers are with its filing turn now
   screen().innerHTML = `
     <div class="sheet">
       <div class="big num">${Number(v.score).toFixed(1)}</div>
@@ -373,6 +395,93 @@ function renderUnreadable(app, v) {
     <div class="controls">${v.bucket ? `<button class="pill fill" data-act="again">Try again</button>` : ""}<button class="pill quiet" data-act="skip">Skip</button></div>`;
   bind(app, (act) => {
     if (act === "again") op(app, "bucket", { bucket: v.bucket });
+    if (act === "skip") op(app, "skip", {});
+  });
+}
+
+// ---------- a log's prompts: up to three questions about the thing, before the bucket — or, notes-only, instead of it ----------
+/** TMDB's credit (Terms §3; Alex kept TMDB, 2026-10-26): its logo, self-hosted because the CSP allows only this origin's images, and its
+ *  notice, verbatim. On a film's or show's prompt screen only, quieter than every Tori mark (app.css `.credit`). */
+const TMDB_NOTICE = "This application uses TMDB and the TMDB APIs but is not endorsed, certified, or otherwise approved by TMDB.";
+const tmdbCredit = () => `<p class="credit" id="tmdb-credit"><img src="/ce40a07247fbae/tmdb.svg" alt="TMDB" height="12"><span>${TMDB_NOTICE}</span></p>`;
+
+/** The look Alex picked (Task 11). The markup carries the ids pl, pq, answer, pn and pnext, and puts TMDB's credit (id tmdb-credit) where
+ *  Alex saw it when `credit` is set. Only the prompt count `n` is drawn here: fill() sets #pl, #pq, #pn and #pnext right after this lands,
+ *  with textContent, because a prompt's label and text are model output and none of it may go through innerHTML. */
+const promptMarkup = (n, credit) => `
+    <div class="sheet prompt">
+      <div class="label" id="pl"></div>
+      <h2 id="pq"></h2>
+      <textarea id="answer" class="field" rows="3" maxlength="300" enterkeyhint="next" autofocus aria-labelledby="pq" placeholder="A line or two — or skip it"></textarea>
+      <div class="row between"><span class="meta"><span class="num" id="pn"></span> of <span class="num">${n}</span></span>
+        <span class="row"><button class="pill quiet" data-act="skip-prompt">Skip</button><button class="pill fill" id="pnext" data-act="next"></button></span></div>
+      ${credit ? tmdbCredit() : ""}
+    </div>`;
+
+/** One prompt per screen, all in the top half (the iOS keyboard covers the bottom; the app has no keyboard-aware layout); no Back.
+ *  Next (an empty box counts as Skip), Skip, or Enter moves on. Drawn once and updated in place, so the keyboard stays up between
+ *  prompts. A full log's last prompt leads to the bucket; a notes-only session's last button is Save. A film or a show carries TMDB's
+ *  credit: the View's `domain` says which, as it does for every session. */
+function renderPrompts(app, v) {
+  const d = draftFor(v.id);
+  d.prompts = v.prompts;
+  const n = v.prompts.length, notesOnly = v.kind === "notes";
+  if (d.at >= n) d.at = n - 1;   // only a notes-only session gets here with every prompt passed: its Save is on the last one
+  screen().innerHTML = `${pinned(v)}${promptMarkup(n, v.domain === "movie" || v.domain === "show")}`;
+  const box = $("answer");
+  const fill = () => {
+    const p = v.prompts[d.at];
+    $("pl").textContent = p.label; $("pq").textContent = p.text; $("pn").textContent = String(d.at + 1);
+    $("pnext").textContent = notesOnly && d.at === n - 1 ? "Save" : "Next";
+    box.value = d.answers[p.label] || "";
+    box.focus({ preventScroll: true });
+  };
+  const step = (keep) => {
+    if (app.state.session !== v) return;   // the session moved on under this screen: nothing here is its
+    d.answers[v.prompts[d.at].label] = keep ? box.value : "";
+    if (d.at < n - 1) { d.at++; keepDraft(d); return fill(); }
+    if (!notesOnly) { d.at = n; keepDraft(d); return renderRank(app); }   // a full log: on to the bucket
+    keepDraft(d);
+    op(app, "notes", { notes: notesOf(d) });
+  };
+  box.addEventListener("input", () => { d.answers[v.prompts[d.at].label] = box.value; keepDraft(d); });
+  box.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); step(true); } });
+  bind(app, (act) => { if (act === "next") step(true); if (act === "skip-prompt") step(false); });
+  fill();
+}
+
+// ---------- notes saved: where they went, and Re-rate when it already has a score ----------
+function renderNoted(app, v) {
+  const d = draft && draft.id === v.id ? draft : null;
+  // Once per View, not once per render (a Rank→Lists→Rank trip draws this again): `wrote` is how many answers the Save carried, or null
+  // for a session reopened after its save, which has no draft (then just say where).
+  if (!("wrote" in v)) { v.wrote = d ? notesOf(d).length : null; hapticNote("success"); }
+  dropDraft(v.id);
+  screen().innerHTML = `
+    ${pinned(v)}
+    <div class="sheet">
+      <p class="hint left">${v.wrote === 0 ? "Nothing written — no answers." : `Notes saved to ${esc(v.where)}.`}</p>
+      ${v.prior != null ? `<p class="hint left">You have it at ${num(v.prior)}.</p>` : ""}
+      <div class="row">${v.prior != null ? `<button class="pill" data-act="rerate">Re-rate</button>` : ""}<button class="pill fill" data-act="done">Done</button></div>
+    </div>`;
+  bind(app, (act) => {
+    if (act === "rerate") app.start({ item: v.item.name, domain: v.domain, year: v.item.year, city: v.city });
+    if (act === "done") { app.state.session = null; renderRank(app); }
+  });
+}
+
+// ---------- a notes save that didn't land: the reason and Save again (the answers stay in the draft) ----------
+/** FAIL_COPY's wording for the reasons a notes save shares with a rating's (note-missing, write-failed); not-on-note reads differently here. */
+const NOTES_FAIL = { ...FAIL_COPY, "not-on-note": "it isn't on the note yet — Tori may still be adding it. Save again in a minute." };
+function renderNotesFailed(app, v) {
+  screen().innerHTML = `
+    ${pinned(v)}
+    <div class="sheet">
+      <p class="hint left">Not saved: ${esc(NOTES_FAIL[v.reason] || "it didn't go through. Save again in a minute.")}</p>
+      <div class="row"><button class="pill fill" data-act="save">Save again</button><button class="pill quiet" data-act="skip">Skip</button></div>
+    </div>`;
+  bind(app, (act) => {
+    if (act === "save") op(app, "notes", { notes: notesOf(draftFor(v.id)) });
     if (act === "skip") op(app, "skip", {});
   });
 }

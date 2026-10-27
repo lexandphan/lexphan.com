@@ -103,3 +103,13 @@ details.unranked[open] summary::before{ content:"−"; }
 details.unranked .list{ margin-top:8px; }
 
 @media (prefers-reduced-motion: reduce){ .anim, .toast{ transition:none !important; } }
+
+/* a log's prompts (2026-10-26, look A): one prompt per screen on the sheet's paper, all of it in the top half */
+.row.between{ justify-content:space-between; }
+/* TMDB's credit (Terms §3; Alex kept TMDB, 2026-10-26), on a film's or show's prompt only: the logo 12 px tall and the notice 11 px in
+   --ink-3, quieter than every Tori mark (the wordmark is 20 px); look A puts it at the sheet's foot */
+.credit{ display:flex; align-items:center; gap:8px; margin:0; font-size:11px; line-height:1.35; color:var(--ink-3); }
+.credit img{ height:12px; width:auto; flex:none; }
+.prompt{ gap:12px; }
+.prompt h2{ font-size:19px; }
+.prompt .credit{ border-top:1px solid var(--line); padding-top:10px; }

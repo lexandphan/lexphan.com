@@ -3,7 +3,7 @@
 // Safari's). `?s=<id>` opens straight into that session; otherwise the home view. Nothing renders without auth.
 import { $, toast, setTheme } from "./ui.js";
 import { api, apiUrl, call, Gone } from "./api.js";
-import { renderRank } from "./rank.js";
+import { renderRank } from "./rank.js?v=20261027";
 import { renderLists } from "./lists.js";
 
 /** Areal (Dinamo's free Are.na face) loads from the project's public-read `fonts` bucket, on the host the API lives on.
