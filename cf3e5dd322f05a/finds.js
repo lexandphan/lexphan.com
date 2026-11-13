@@ -301,21 +301,24 @@ function run(data, partial) {
   const back = (() => { try { return performance.getEntriesByType("navigation")[0]?.type === "back_forward"; } catch { return false; } })();
   let snap = null;
   if (back) try { snap = JSON.parse(sessionStorage.getItem("finds-fresh") || "null"); } catch {}
-  // The full list swapping in keeps the draws the first page already made, so its order holds.
+  // The full list swapping in keeps the draws the first page already made, and Fresh keeps the cards
+  // the first page painted on top (pinned) in their order, so nothing he is looking at vanishes. Back
+  // reuses the pinned set of the visit it returns to; a new open pins its own first page.
+  const pinned = new Set(back && snap?.pinned ? snap.pinned : partial ? data.items.map((it) => it.id) : []);
   let seenAt = new Map(), luck = new Map();
   function adopt(d) {
     data = d; items = d.items;
     items.forEach((it) => { if (touched.has(it.id)) it.saved = touched.get(it.id); });
     seenAt = new Map(items.map((it) => [it.id, seenAt.get(it.id) ?? snap?.seen?.[it.id] ?? ((it.seen_at && Date.parse(it.seen_at)) || 0)]));
     luck = new Map(items.map((it) => [it.id, luck.get(it.id) ?? snap?.luck?.[it.id] ?? Math.random() ** (1 / freshWeight(it))]));
-    try { sessionStorage.setItem("finds-fresh", JSON.stringify({ seen: Object.fromEntries(seenAt), luck: Object.fromEntries(luck) })); } catch {}
+    try { sessionStorage.setItem("finds-fresh", JSON.stringify({ seen: Object.fromEntries(seenAt), luck: Object.fromEntries(luck), pinned: [...pinned] })); } catch {}
     $("gen").textContent = "Live as of " + new Date(d.generated_at).toLocaleString();
   }
   adopt(data);
   const sorters = {
     fresh: (a, b) => {
       const sa = seenAt.get(a.id), sb = seenAt.get(b.id);
-      return (sa > 0) - (sb > 0) || (sa ? sa - sb : luck.get(b.id) - luck.get(a.id));   // new, then longest-ago seen
+      return (sa > 0) - (sb > 0) || pinned.has(b.id) - pinned.has(a.id) || (sa ? sa - sb : luck.get(b.id) - luck.get(a.id));   // new, then longest-ago seen
     },
     newest: (a, b) => ts(b) - ts(a),
     taste: (a, b) => (b.taste_score ?? -1) - (a.taste_score ?? -1) || ts(b) - ts(a),
@@ -472,12 +475,14 @@ function run(data, partial) {
   }
   render();
   restore();
+  const y0 = scrollY;
   // The full list lands: same controls, same scroll, new items. Seen state (sent, queue) lives on.
   return (d) => {
     const y = scrollY;
     partial = false;
     adopt(d); tabs(); allChips(); render();
-    scrollTo(0, y); restore();
+    scrollTo(0, y);
+    if (y === y0) restore();   // he has not moved since the first paint; if he has, leave him there
     $("partial").hidden = true;
   };
 }
