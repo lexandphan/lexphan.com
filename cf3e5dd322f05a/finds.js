@@ -56,18 +56,27 @@ async function load(url, first) {
   return data;
 }
 
+// Coming Back (bfcache dropped the page): the page rebuilds the order and position he left from the
+// snapshot, which needs the full list. The first page is only a fallback there.
+const back = (() => { try { return performance.getEntriesByType("navigation")[0]?.type === "back_forward"; } catch { return false; } })();
+const num = (n) => typeof n === "number" && Number.isFinite(n);
+
 // Both GETs start at once. The first page (<= 48 items, with counts) paints as soon as it lands; the
 // full list swaps in behind it. A response without counts is the full list (a function that predates
-// first=1), so whichever lands first without counts wins and the other is ignored.
+// first=1), and so is a first page that holds every row, so whichever lands first as a full list wins
+// and the other is ignored. On Back the first page waits, and paints only if the full list fails.
 async function main() {
   const url = dataUrl();
   if (!url || !(await hostOk(new URL(url).hostname))) return fail("This link is incomplete. Send Tori \"finds\" for a fresh one.");
-  let swap = null, fullIn = false, fullErr = null, firstErr = null;
-  const note = () => { $("partial").hidden = false; };
+  let swap = null, fullIn = false, fullErr = null, firstErr = null, held = null;
+  const note = () => { restFailed = true; $("loadrest").hidden = true; $("partial").hidden = false; };
   const give = (data, isFull) => {
     if (fullIn) return;
     fullIn = isFull;
-    if (swap) return swap(data);
+    if (swap) {
+      try { swap(data); } catch (e) { console.error(e); note(); }
+      return;
+    }
     $("state").hidden = true; $("wrap").hidden = false;
     API = url;
     if (matchMedia("(min-width: 761px)").matches) $("filters").open = true;
@@ -75,19 +84,24 @@ async function main() {
   };
   load(url).then((d) => give(d, true), (e) => {
     fullErr = e;
-    if (swap) { if (!fullIn) note(); } else if (firstErr) fail(e.message);
+    if (swap) { if (!fullIn) note(); }
+    else if (held) { give(held, false); note(); }
+    else if (firstErr) fail(e.message);
   });
+  const firstFailed = (e) => { firstErr = e; if (fullErr && !swap) fail(fullErr.message); };
   load(url, true).then((d) => {
     if (fullIn) return;
-    give(d, !d.counts);
-    if (fullErr && !fullIn) note();
-  }, (e) => {
-    firstErr = e;
-    if (fullErr && !swap) fail(fullErr.message);
-  });
+    if (!d.counts) return give(d, true);
+    if (!num(d.counts.total) || !num(d.counts.new)) return firstFailed(new Error("first page without usable counts"));
+    if (d.counts.total <= d.items.length) return give(d, true);
+    if (back) { if (fullErr) { give(d, false); note(); } else held = d; return; }
+    give(d, false);
+    if (fullErr) note();
+  }, firstFailed);
 }
 
 let API = null;   // the signed buyee-page URL this page was opened with
+let restFailed = false;   // the full list did not load
 const PAGE = 48;
 const BRANDS_SHOWN = 10;
 const SEEN_MS = 1000;         // half a card on screen this long = seen (a flick past doesn't count)
@@ -140,7 +154,7 @@ function run(data, partial) {
     chips("brand", shown, "brand");
     const more = $("brandmore");
     more.hidden = all.length <= BRANDS_SHOWN;
-    more.textContent = state.allBrands ? "Fewer brands" : `All ${all.length} brands`;
+    more.textContent = state.allBrands ? "Fewer brands" : partial ? "All brands" : `All ${all.length} brands`;
   }
   $("brandmore").addEventListener("click", () => { state.allBrands = !state.allBrands; brandChips(); });
   function tabs() {
@@ -159,7 +173,7 @@ function run(data, partial) {
     chips("garment", ["tops", "bottoms"], "garment");
     chips("tier", ["fit", "maybe"], "tier");
     chips("kind", ["fixed", "auction"], "kind");
-    chips("source", ["yahoo", "flea", "mercari"].filter((s) => items.some((i) => i.source === s)), "source");
+    chips("source", ["yahoo", "flea", "mercari"].filter((s) => partial || items.some((i) => i.source === s)), "source");
     brandChips();
   }
   tabs(); allChips();
@@ -210,18 +224,28 @@ function run(data, partial) {
   }
   // ☆ Save, the page's one write: POST with the same signed link. Optimistic, then settles on what
   // the server says the row really is. A row unsaved on the Saved tab stays put until the next render.
-  async function toggleSave(it, btn, c) {
+  // The card is looked up by id each time: the full list swapping in replaces the card that was tapped.
+  const saving = new Set();
+  const cardOf = (id) => $("grid").querySelector(`article[data-id="${CSS.escape(id)}"]`);
+  async function toggleSave(it) {
     const want = !it.saved;
-    const show = (on) => { const was = it.saved; it.saved = on; touched.set(it.id, on); const cur = items.find((x) => x.id === it.id); if (cur) cur.saved = on; c.classList.toggle("saved", on); if (was !== on) tabs(); btn.textContent = on ? "★" : "☆";
-      btn.setAttribute("aria-pressed", String(on)); btn.setAttribute("aria-label", on ? "Unsave" : "Save"); };
-    show(want); btn.disabled = true;
+    const show = (on) => {
+      const cur = items.find((x) => x.id === it.id) || it, was = cur.saved;
+      it.saved = cur.saved = on; touched.set(it.id, on);
+      if (was !== on) tabs();
+      const c = cardOf(it.id), btn = c?.querySelector(".savebtn"); if (!c) return;
+      c.classList.toggle("saved", on); btn.textContent = on ? "★" : "☆";
+      btn.setAttribute("aria-pressed", String(on)); btn.setAttribute("aria-label", on ? "Unsave" : "Save");
+    };
+    const busy = (on) => { const b = cardOf(it.id)?.querySelector(".savebtn"); if (b) b.disabled = on; };
+    saving.add(it.id); show(want); busy(true);
     try {
       const u = new URL(API); u.searchParams.set("save", it.id); u.searchParams.set("on", want ? "1" : "0");
       const res = await fetch(u, { method: "POST", referrerPolicy: "no-referrer" });
       const j = res.ok ? await res.json() : null;
       show(j ? !!j.saved : !want);
     } catch { show(!want); }
-    btn.disabled = false;
+    saving.delete(it.id); busy(false);
   }
   function card(it) {
     const c = el("article", "card" + (it.saved ? " saved" : "") + (it.sold ? " sold" : ""));
@@ -285,7 +309,8 @@ function run(data, partial) {
     const media = el("div", "media"); media.append(img);
     const sv = el("button", "savebtn"); sv.type = "button";
     sv.textContent = it.saved ? "★" : "☆"; sv.setAttribute("aria-pressed", String(!!it.saved)); sv.setAttribute("aria-label", it.saved ? "Unsave" : "Save");
-    sv.addEventListener("click", () => toggleSave(it, sv, c));
+    sv.disabled = saving.has(it.id);
+    sv.addEventListener("click", () => toggleSave(it));
     media.append(sv);
     c.append(media, body, foot);
     return c;
@@ -298,7 +323,6 @@ function run(data, partial) {
   // marks made while scrolling count from the next open, so nothing jumps under a thumb. The draw is
   // kept for this tab, so coming Back from the fit viewer (a reload when the browser didn't keep the
   // page) restores the same order and scroll instead of reshuffling. A refresh or a new link draws anew.
-  const back = (() => { try { return performance.getEntriesByType("navigation")[0]?.type === "back_forward"; } catch { return false; } })();
   let snap = null;
   if (back) try { snap = JSON.parse(sessionStorage.getItem("finds-fresh") || "null"); } catch {}
   // The full list swapping in keeps the draws the first page already made, and Fresh keeps the cards
@@ -311,7 +335,7 @@ function run(data, partial) {
     items.forEach((it) => { if (touched.has(it.id)) it.saved = touched.get(it.id); });
     seenAt = new Map(items.map((it) => [it.id, seenAt.get(it.id) ?? snap?.seen?.[it.id] ?? ((it.seen_at && Date.parse(it.seen_at)) || 0)]));
     luck = new Map(items.map((it) => [it.id, luck.get(it.id) ?? snap?.luck?.[it.id] ?? Math.random() ** (1 / freshWeight(it))]));
-    try { sessionStorage.setItem("finds-fresh", JSON.stringify({ seen: Object.fromEntries(seenAt), luck: Object.fromEntries(luck), pinned: [...pinned] })); } catch {}
+    if (!partial) try { sessionStorage.setItem("finds-fresh", JSON.stringify({ seen: Object.fromEntries(seenAt), luck: Object.fromEntries(luck), pinned: [...pinned] })); } catch {}
     $("gen").textContent = "Live as of " + new Date(d.generated_at).toLocaleString();
   }
   adopt(data);
@@ -406,7 +430,11 @@ function run(data, partial) {
     grid.append(frag);
     shown = Math.min(rows.length, shown + PAGE);
   }
-  new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting) && shown < rows.length) more(); }, { rootMargin: "1200px 0px" }).observe($("sentinel"));
+  const sentinel = new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting) && shown < rows.length) more(); }, { rootMargin: "1200px 0px" });
+  sentinel.observe($("sentinel"));
+  // The observer only reports a change, so after a render that leaves the sentinel in range (the swap,
+  // a restore) it is re-armed to report where it stands now.
+  const rearm = () => { sentinel.unobserve($("sentinel")); sentinel.observe($("sentinel")); };
 
   // Colour combos from wardrobe.md: wearable today, one find away (tap to see those finds), or
   // further off. Counts follow the current tab, not the other filters.
@@ -418,16 +446,16 @@ function run(data, partial) {
     box.append(el("span", "lbl", "Combos"));
     const pool = tabItems(state.tab);
     const rows2 = list.map((c) => {
-      const finds = pool.filter((it) => (it.capsule?.combos || []).includes(c.name));
+      const finds = partial ? [] : pool.filter((it) => (it.capsule?.combos || []).includes(c.name));
       return { c, n: finds.length, unlock: finds.filter((it) => it.capsule.pair?.kind === "new").length };
     }).sort((a, b) => (b.c.ready - a.c.ready) || (b.unlock - a.unlock) || (b.n - a.n));
     for (const { c, n, unlock } of rows2) {
-      const b = el("button", "combo" + (c.ready ? " ready" : unlock ? " near" : " far")); b.type = "button";
+      const b = el("button", "combo" + (c.ready ? " ready" : partial ? "" : unlock ? " near" : " far")); b.type = "button";
       b.setAttribute("aria-pressed", String(state.combo === c.name));
       const sws = el("span", "sws"); c.colors.forEach((col) => sws.append(el("span", "sw " + col)));
-      b.append(sws, el("span", "nm", c.name), el("small", null, c.ready ? (n ? n + " that pair" : "wearable") : unlock ? unlock + " to unlock" : "2+ pieces away"));
+      b.append(sws, el("span", "nm", c.name), el("small", null, partial ? (c.ready ? "wearable" : "") : c.ready ? (n ? n + " that pair" : "wearable") : unlock ? unlock + " to unlock" : "2+ pieces away"));
       b.title = (c.note ? c.note + ". " : "") + (c.pieces.length ? "You own: " + c.pieces.join(", ") : "");
-      if (!n) b.disabled = true;
+      if (!n && !partial) b.disabled = true;
       b.addEventListener("click", () => { state.combo = state.combo === c.name ? "" : c.name; render(); });
       box.append(b);
     }
@@ -454,19 +482,20 @@ function run(data, partial) {
     seenObs.disconnect(); stopTimers();
     const grid = $("grid"); grid.replaceChildren(); shown = 0;
     if (!rows.length) {
-      grid.append(el("div", "empty", partial ? "Nothing in the first 48 finds." : state.tab === "saved" ? "Nothing saved yet. Tap ☆ on a listing, or Save on a Telegram card."
+      grid.append(el("div", "empty", partial ? "Nothing here in the first 48. The rest is still loading." : state.tab === "saved" ? "Nothing saved yet. Tap ☆ on a listing, or Save on a Telegram card."
         : state.tab === "discover" ? "No discoveries yet." : "Nothing matches these filters."));
     }
     more();
     $("count").textContent = partial ? data.counts.total + " listings · " + data.counts.new + " new"
       : rows.length + " / " + tabItems(state.tab).length + " listings · " + rows.filter((it) => !seenAt.get(it.id)).length + " new";
-    $("show").textContent = "Show " + rows.length + " result" + (rows.length === 1 ? "" : "s");
+    $("show").textContent = partial ? "Show results" : "Show " + rows.length + " result" + (rows.length === 1 ? "" : "s");
+    $("loadrest").hidden = !partial || restFailed;
     activeChips();
     try { localStorage.setItem("finds-state", JSON.stringify({ v: 2, tab: state.tab, q: state.q, sort: state.sort, pmin: state.pmin, pmax: state.pmax, ...Object.fromEntries(SETS.map((k) => [k, [...state[k]]])) })); } catch {}
   }
-  // Coming Back: reopen as far down as he was. Waits for the full list, which is what he was scrolling.
+  // Coming Back: reopen as far down as he was. Runs at the full list's render, which is what he was scrolling.
   function restore() {
-    if (!back || partial) return;
+    if (!back) return;
     try {
       const pos = JSON.parse(sessionStorage.getItem("finds-pos") || "null");
       while (pos && shown < Math.min(pos.n, rows.length)) more();
@@ -475,14 +504,14 @@ function run(data, partial) {
   }
   render();
   restore();
-  const y0 = scrollY;
+  rearm();
   // The full list lands: same controls, same scroll, new items. Seen state (sent, queue) lives on.
   return (d) => {
     const y = scrollY;
     partial = false;
     adopt(d); tabs(); allChips(); render();
-    scrollTo(0, y);
-    if (y === y0) restore();   // he has not moved since the first paint; if he has, leave him there
+    if (scrollY !== y) scrollTo(0, y);
+    rearm();
     $("partial").hidden = true;
   };
 }
