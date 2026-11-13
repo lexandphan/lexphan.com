@@ -44,20 +44,47 @@ function dataUrl() {
 
 const fail = (msg) => { $("state").textContent = msg; $("state").hidden = false; $("wrap").hidden = true; };
 
+// One GET on the signed link; `first` asks for the fast first page. Throws the text the page shows.
+async function load(url, first) {
+  const u = new URL(url); if (first) u.searchParams.set("first", "1");
+  let res;
+  try { res = await fetch(u, { referrerPolicy: "no-referrer" }); } catch { throw new Error("Couldn't reach your finds. Check your connection and reload."); }
+  if (!res.ok) throw new Error("This link has expired. Send Tori \"finds\" and she'll send a fresh one.");
+  let data;
+  try { data = await res.json(); } catch {}
+  if (!Array.isArray(data?.items)) throw new Error("Something's off with this link. Send Tori \"finds\" for a fresh one.");
+  return data;
+}
+
+// Both GETs start at once. The first page (<= 48 items, with counts) paints as soon as it lands; the
+// full list swaps in behind it. A response without counts is the full list (a function that predates
+// first=1), so whichever lands first without counts wins and the other is ignored.
 async function main() {
   const url = dataUrl();
   if (!url || !(await hostOk(new URL(url).hostname))) return fail("This link is incomplete. Send Tori \"finds\" for a fresh one.");
-  let data;
-  try {
-    const res = await fetch(url, { referrerPolicy: "no-referrer" });
-    if (!res.ok) return fail("This link has expired. Send Tori \"finds\" and she'll send a fresh one.");
-    data = await res.json();
-  } catch { return fail("Couldn't reach your finds. Check your connection and reload."); }
-  if (!Array.isArray(data?.items)) return fail("Something's off with this link. Send Tori \"finds\" for a fresh one.");
-  $("state").hidden = true; $("wrap").hidden = false;
-  API = url;
-  if (matchMedia("(min-width: 761px)").matches) $("filters").open = true;
-  run(data);
+  let swap = null, fullIn = false, fullErr = null, firstErr = null;
+  const note = () => { $("partial").hidden = false; };
+  const give = (data, isFull) => {
+    if (fullIn) return;
+    fullIn = isFull;
+    if (swap) return swap(data);
+    $("state").hidden = true; $("wrap").hidden = false;
+    API = url;
+    if (matchMedia("(min-width: 761px)").matches) $("filters").open = true;
+    swap = run(data, !isFull);
+  };
+  load(url).then((d) => give(d, true), (e) => {
+    fullErr = e;
+    if (swap) { if (!fullIn) note(); } else if (firstErr) fail(e.message);
+  });
+  load(url, true).then((d) => {
+    if (fullIn) return;
+    give(d, !d.counts);
+    if (fullErr && !fullIn) note();
+  }, (e) => {
+    firstErr = e;
+    if (fullErr && !swap) fail(fullErr.message);
+  });
 }
 
 let API = null;   // the signed buyee-page URL this page was opened with
@@ -72,9 +99,10 @@ function layout() {
   document.body.classList.add(l);
 }
 
-function run(data) {
+// `partial`: data is only the first page (it carries counts). Returns the swap that takes the full list.
+function run(data, partial) {
   layout();
-  const items = data.items;
+  let items = data.items;
   const state = { tab: "brands", q: "", sort: "fresh", pmin: "", pmax: "", allBrands: false, combo: "" };
   SETS.forEach((k) => (state[k] = new Set()));
   try {
@@ -88,6 +116,7 @@ function run(data) {
   if (!TABS[state.tab]) state.tab = "brands";
   if (!$("sort").querySelector(`option[value="${state.sort}"]`)) state.sort = "fresh";
 
+  const touched = new Map();   // saves made on this page: the full list was fetched before them
   const tabItems = (tab) => tab === "saved" ? items.filter((it) => it.saved) : items.filter((it) => (tab === "discover") === !!it.discover);
   const LABELS = { tier: { fit: "In range", maybe: "Tag size only" }, garment: { tops: "Tops / outerwear", bottoms: "Bottoms" },
     kind: { fixed: "Buy now", auction: "Auction" }, source: SOURCE, silhouette: SIL, tori: TORI, capsule: CAP, brand: null };
@@ -104,7 +133,7 @@ function run(data) {
   function brandChips() {
     const counts = {};
     tabItems(state.tab).forEach((it) => (counts[it.brand] = (counts[it.brand] || 0) + 1));
-    for (const b of [...state.brand]) if (!counts[b]) state.brand.delete(b);
+    if (!partial) for (const b of [...state.brand]) if (!counts[b]) state.brand.delete(b);
     const all = Object.keys(counts).sort((a, b) => counts[b] - counts[a] || a.localeCompare(b));
     // picked brands always stay visible, even when the list is folded
     const shown = state.allBrands ? all : [...new Set([...all.slice(0, BRANDS_SHOWN), ...all.filter((b) => state.brand.has(b))])];
@@ -118,7 +147,7 @@ function run(data) {
     const box = $("tabs"); box.replaceChildren();
     Object.keys(TABS).forEach((t) => {
       const b = el("button", "tab", TABS[t]); b.type = "button"; b.setAttribute("role", "tab"); b.setAttribute("aria-selected", String(state.tab === t));
-      b.append(el("span", "n", String(tabItems(t).length)));
+      if (!partial) b.append(el("span", "n", String(tabItems(t).length)));
       b.addEventListener("click", () => { state.tab = t; state.brand.clear(); tabs(); brandChips(); render(); });
       box.append(b);
     });
@@ -183,7 +212,7 @@ function run(data) {
   // the server says the row really is. A row unsaved on the Saved tab stays put until the next render.
   async function toggleSave(it, btn, c) {
     const want = !it.saved;
-    const show = (on) => { const was = it.saved; it.saved = on; c.classList.toggle("saved", on); if (was !== on) tabs(); btn.textContent = on ? "★" : "☆";
+    const show = (on) => { const was = it.saved; it.saved = on; touched.set(it.id, on); const cur = items.find((x) => x.id === it.id); if (cur) cur.saved = on; c.classList.toggle("saved", on); if (was !== on) tabs(); btn.textContent = on ? "★" : "☆";
       btn.setAttribute("aria-pressed", String(on)); btn.setAttribute("aria-label", on ? "Unsave" : "Save"); };
     show(want); btn.disabled = true;
     try {
@@ -272,9 +301,17 @@ function run(data) {
   const back = (() => { try { return performance.getEntriesByType("navigation")[0]?.type === "back_forward"; } catch { return false; } })();
   let snap = null;
   if (back) try { snap = JSON.parse(sessionStorage.getItem("finds-fresh") || "null"); } catch {}
-  const seenAt = new Map(items.map((it) => [it.id, snap?.seen?.[it.id] ?? ((it.seen_at && Date.parse(it.seen_at)) || 0)]));
-  const luck = new Map(items.map((it) => [it.id, snap?.luck?.[it.id] ?? Math.random() ** (1 / freshWeight(it))]));
-  try { sessionStorage.setItem("finds-fresh", JSON.stringify({ seen: Object.fromEntries(seenAt), luck: Object.fromEntries(luck) })); } catch {}
+  // The full list swapping in keeps the draws the first page already made, so its order holds.
+  let seenAt = new Map(), luck = new Map();
+  function adopt(d) {
+    data = d; items = d.items;
+    items.forEach((it) => { if (touched.has(it.id)) it.saved = touched.get(it.id); });
+    seenAt = new Map(items.map((it) => [it.id, seenAt.get(it.id) ?? snap?.seen?.[it.id] ?? ((it.seen_at && Date.parse(it.seen_at)) || 0)]));
+    luck = new Map(items.map((it) => [it.id, luck.get(it.id) ?? snap?.luck?.[it.id] ?? Math.random() ** (1 / freshWeight(it))]));
+    try { sessionStorage.setItem("finds-fresh", JSON.stringify({ seen: Object.fromEntries(seenAt), luck: Object.fromEntries(luck) })); } catch {}
+    $("gen").textContent = "Live as of " + new Date(d.generated_at).toLocaleString();
+  }
+  adopt(data);
   const sorters = {
     fresh: (a, b) => {
       const sa = seenAt.get(a.id), sb = seenAt.get(b.id);
@@ -414,22 +451,35 @@ function run(data) {
     seenObs.disconnect(); stopTimers();
     const grid = $("grid"); grid.replaceChildren(); shown = 0;
     if (!rows.length) {
-      grid.append(el("div", "empty", state.tab === "saved" ? "Nothing saved yet. Tap ☆ on a listing, or Save on a Telegram card."
+      grid.append(el("div", "empty", partial ? "Nothing in the first 48 finds." : state.tab === "saved" ? "Nothing saved yet. Tap ☆ on a listing, or Save on a Telegram card."
         : state.tab === "discover" ? "No discoveries yet." : "Nothing matches these filters."));
     }
     more();
-    $("count").textContent = rows.length + " / " + tabItems(state.tab).length + " listings · " + rows.filter((it) => !seenAt.get(it.id)).length + " new";
+    $("count").textContent = partial ? data.counts.total + " listings · " + data.counts.new + " new"
+      : rows.length + " / " + tabItems(state.tab).length + " listings · " + rows.filter((it) => !seenAt.get(it.id)).length + " new";
     $("show").textContent = "Show " + rows.length + " result" + (rows.length === 1 ? "" : "s");
     activeChips();
     try { localStorage.setItem("finds-state", JSON.stringify({ v: 2, tab: state.tab, q: state.q, sort: state.sort, pmin: state.pmin, pmax: state.pmax, ...Object.fromEntries(SETS.map((k) => [k, [...state[k]]])) })); } catch {}
   }
-  $("gen").textContent = "Live as of " + new Date(data.generated_at).toLocaleString();
+  // Coming Back: reopen as far down as he was. Waits for the full list, which is what he was scrolling.
+  function restore() {
+    if (!back || partial) return;
+    try {
+      const pos = JSON.parse(sessionStorage.getItem("finds-pos") || "null");
+      while (pos && shown < Math.min(pos.n, rows.length)) more();
+      if (pos?.y) scrollTo(0, pos.y);
+    } catch {}
+  }
   render();
-  if (back) try {
-    const pos = JSON.parse(sessionStorage.getItem("finds-pos") || "null");
-    while (pos && shown < Math.min(pos.n, rows.length)) more();
-    if (pos?.y) scrollTo(0, pos.y);
-  } catch {}
+  restore();
+  // The full list lands: same controls, same scroll, new items. Seen state (sent, queue) lives on.
+  return (d) => {
+    const y = scrollY;
+    partial = false;
+    adopt(d); tabs(); allChips(); render();
+    scrollTo(0, y); restore();
+    $("partial").hidden = true;
+  };
 }
 
 main();
