@@ -68,19 +68,22 @@ const num = (n) => typeof n === "number" && Number.isFinite(n);
 async function main() {
   const url = dataUrl();
   if (!url || !(await hostOk(new URL(url).hostname))) return fail("This link is incomplete. Send Tori \"finds\" for a fresh one.");
-  let swap = null, fullIn = false, fullErr = null, firstErr = null, held = null;
+  let swap = null, fullIn = false, fullErr = null, firstErr = null, held = null, dead = false;
   const note = () => { restFailed = true; $("loadrest").hidden = true; $("partial").hidden = false; };
+  // A list the page cannot draw is a bad shape, as load() treats one: fail loudly and ignore what lands later.
   const give = (data, isFull) => {
-    if (fullIn) return;
+    if (fullIn || dead) return;
     fullIn = isFull;
-    if (swap) {
-      try { swap(data); } catch (e) { console.error(e); note(); }
-      return;
+    try {
+      if (swap) return swap(data);
+      $("state").hidden = true; $("wrap").hidden = false;
+      API = url;
+      if (matchMedia("(min-width: 761px)").matches) $("filters").open = true;
+      swap = run(data, !isFull);
+    } catch (e) {
+      console.error(e); dead = true;
+      fail("Something's off with this link. Send Tori \"finds\" for a fresh one.");
     }
-    $("state").hidden = true; $("wrap").hidden = false;
-    API = url;
-    if (matchMedia("(min-width: 761px)").matches) $("filters").open = true;
-    swap = run(data, !isFull);
   };
   load(url).then((d) => give(d, true), (e) => {
     fullErr = e;
@@ -91,8 +94,8 @@ async function main() {
   const firstFailed = (e) => { firstErr = e; if (fullErr && !swap) fail(fullErr.message); };
   load(url, true).then((d) => {
     if (fullIn) return;
-    if (!d.counts) return give(d, true);
-    if (!num(d.counts.total) || !num(d.counts.new)) return firstFailed(new Error("first page without usable counts"));
+    if (!("counts" in d)) return give(d, true);   // an old function: the full list
+    if (!num(d.counts?.total) || !num(d.counts?.new)) return firstFailed(new Error("first page without usable counts"));
     if (d.counts.total <= d.items.length) return give(d, true);
     if (back) { if (fullErr) { give(d, false); note(); } else held = d; return; }
     give(d, false);
@@ -416,7 +419,8 @@ function run(data, partial) {
   });
   addEventListener("pagehide", () => {
     flushSeen(true);
-    try { sessionStorage.setItem("finds-pos", JSON.stringify({ y: scrollY, n: shown })); } catch {}
+    // Only the full list's position pairs with the snapshot Back restores (written at the same point).
+    if (!partial) try { sessionStorage.setItem("finds-pos", JSON.stringify({ y: scrollY, n: shown })); } catch {}
   });
 
   let rows = [], shown = 0, firstSeen = -1;
