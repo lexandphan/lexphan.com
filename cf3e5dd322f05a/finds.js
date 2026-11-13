@@ -487,4 +487,6 @@ function run(data, partial) {
   };
 }
 
+// Back's scroll is the page's own (restore), so the browser must not move him first.
+history.scrollRestoration = "manual";
 main();
