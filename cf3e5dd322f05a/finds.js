@@ -482,7 +482,7 @@ function run(data, partial) {
     seenObs.disconnect(); stopTimers();
     const grid = $("grid"); grid.replaceChildren(); shown = 0;
     if (!rows.length) {
-      grid.append(el("div", "empty", partial ? "Nothing here in the first 48. The rest is still loading." : state.tab === "saved" ? "Nothing saved yet. Tap ☆ on a listing, or Save on a Telegram card."
+      grid.append(el("div", "empty", partial ? "Nothing here in the first 48." : state.tab === "saved" ? "Nothing saved yet. Tap ☆ on a listing, or Save on a Telegram card."
         : state.tab === "discover" ? "No discoveries yet." : "Nothing matches these filters."));
     }
     more();
